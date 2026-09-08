@@ -6,9 +6,13 @@ from app.core.config import settings
 from app.db.database import Base, engine
 from app.models.user import User
 from app.models.farm import Farm
+from app.models.crop import Crop
+from app.models.observation import Observation
 from app.models.farmer_profile import FarmerProfile
+
 from app.models.expert_profile import ExpertProfile
 from app.models.official_profile import OfficialProfile
+
 
 
 # this is the Alembic Config object, which provides

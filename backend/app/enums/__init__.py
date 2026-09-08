@@ -14,3 +14,13 @@ from app.enums.profile import (
     OfficialDepartment,
     OfficialDesignation,
 )
+
+from app.enums.crop import (
+    CropType,
+    RiceVariety,
+    GrowthStage,
+)
+
+from app.enums.observation import (
+    ObservationStatus,
+)

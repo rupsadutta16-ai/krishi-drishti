@@ -42,3 +42,11 @@ class Farm(Base):
 
     # Relationships
     farmer: Mapped["User"] = relationship(back_populates="farms")
+    crops: Mapped[list["Crop"]] = relationship(
+        back_populates="farm", cascade="all, delete-orphan"
+    )
+    observations: Mapped[list["Observation"]] = relationship(
+        back_populates="farm", cascade="all, delete-orphan"
+    )
+
+

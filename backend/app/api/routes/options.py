@@ -14,6 +14,8 @@ from app.enums.profile import (
     OfficialDepartment,
     OfficialDesignation,
 )
+from app.enums.crop import CropType, RiceVariety, GrowthStage
+from app.enums.observation import ObservationStatus
 
 router = APIRouter(prefix="/options", tags=["Options"])
 
@@ -45,4 +47,23 @@ def get_profile_field_options():
             {"value": d.value, "label": d.value}
             for d in OfficialDesignation
         ],
+        "crop_types": [
+            {"value": c.value, "label": c.value}
+            for c in CropType
+        ],
+        "rice_varieties": [
+            {"value": r.value, "label": r.value}
+            for r in RiceVariety
+        ],
+        "growth_stages": [
+            {"value": g.value, "label": g.value}
+            for g in GrowthStage
+        ],
+        "observation_statuses": [
+            {"value": o.value, "label": o.value}
+            for o in ObservationStatus
+        ],
     }
+
+
+

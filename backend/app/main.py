@@ -2,6 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import farm
+from app.api.routes import crop
+from app.api.routes import observation
 from app.api.routes import auth
 from app.api.routes import options
 from app.core.config import settings
@@ -42,6 +44,16 @@ app.include_router(
     farm.router,
     prefix="/api/v1"
 )
+app.include_router(
+    crop.router,
+    prefix="/api/v1"
+)
+app.include_router(
+    observation.router,
+    prefix="/api/v1"
+)
+
+
 
 @app.get("/")
 def root():

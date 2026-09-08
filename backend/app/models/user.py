@@ -58,6 +58,10 @@ class User(Base):
     farms: Mapped[list["Farm"]] = relationship(
         back_populates="farmer"
     )
+    observations: Mapped[list["Observation"]] = relationship(
+        back_populates="farmer"
+    )
+
 
     refresh_token: Mapped[str | None] = mapped_column(nullable=True)
     refresh_token_expires_at: Mapped[datetime | None] = mapped_column(

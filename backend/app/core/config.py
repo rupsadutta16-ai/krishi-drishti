@@ -20,5 +20,12 @@ class Settings:
         os.getenv("JWT_REFRESH_TOKEN_EXPIRE_DAYS", "7")
     )
 
+    # Cloudinary Config
+    CLOUDINARY_CLOUD_NAME: str | None = os.getenv("CLOUDINARY_CLOUD_NAME")
+    CLOUDINARY_API_KEY: str | None = os.getenv("CLOUDINARY_API_KEY")
+    CLOUDINARY_API_SECRET: str | None = os.getenv("CLOUDINARY_API_SECRET")
+    CLOUDINARY_URL: str | None = os.getenv("CLOUDINARY_URL")
+
 
 settings = Settings()
+
