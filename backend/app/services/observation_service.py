@@ -10,6 +10,7 @@ from app.models.user import User
 from app.enums.observation import ObservationStatus
 from app.schemas.observation import ObservationCreate, ObservationUpdate
 from app.services.cloudinary_service import upload_image
+from app.services.image_quality import evaluate_image_bytes
 from app.core.exceptions import AppException
 
 
@@ -89,6 +90,15 @@ def create_observation(
     )
 
     observed_at = observation_data.observed_at or datetime.now(UTC)
+    quality_score = observation_data.image_quality_score
+    if quality_score is not None:
+        initial_status = (
+            ObservationStatus.READY_FOR_AI
+            if quality_score >= 50.0
+            else ObservationStatus.IMAGE_REJECTED
+        )
+    else:
+        initial_status = ObservationStatus.READY_FOR_AI
 
     observation = Observation(
         case_id=None,  # Observation created without case initially
@@ -99,8 +109,8 @@ def create_observation(
         observed_at=observed_at,
         latitude=observation_data.latitude,
         longitude=observation_data.longitude,
-        image_quality_score=observation_data.image_quality_score,
-        status=ObservationStatus.SUBMITTED,
+        image_quality_score=quality_score,
+        status=initial_status,
     )
 
     db.add(observation)
@@ -119,9 +129,15 @@ def create_observation_with_upload(
     current_user: User,
     db: Session,
 ) -> Observation:
-    """Upload image to Cloudinary and create observation record."""
+    """Upload image to Cloudinary and evaluate image quality before saving observation."""
     _require_farmer(current_user)
     _verify_farm_and_crop(farm_id, crop_id, current_user, db)
+
+    # Read bytes for OpenCV quality evaluation
+    file_bytes = file.file.read()
+    file.file.seek(0)
+
+    quality_result = evaluate_image_bytes(file_bytes)
 
     upload_result = upload_image(file.file, folder="observations")
     image_url = upload_result.get("secure_url") or upload_result.get("url")
@@ -135,7 +151,8 @@ def create_observation_with_upload(
         observed_at=datetime.now(UTC),
         latitude=latitude,
         longitude=longitude,
-        status=ObservationStatus.SUBMITTED,
+        image_quality_score=quality_result.score,
+        status=quality_result.status,
     )
 
     db.add(observation)
@@ -143,6 +160,7 @@ def create_observation_with_upload(
     db.refresh(observation)
 
     return observation
+
 
 
 def list_observations(

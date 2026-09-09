@@ -6,12 +6,10 @@ from app.models.user import User
 from app.api.dependencies import get_current_user
 from app.enums.observation import ObservationStatus
 from app.schemas.observation import (
-    ObservationCreate,
     ObservationUpdate,
     ObservationResponse,
 )
 from app.services.observation_service import (
-    create_observation,
     create_observation_with_upload,
     list_observations,
     get_observation,
@@ -28,19 +26,6 @@ router = APIRouter(prefix="/farmer/observations", tags=["Observations"])
     status_code=status.HTTP_201_CREATED,
 )
 def create_observation_route(
-    observation_data: ObservationCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    return create_observation(observation_data, current_user, db)
-
-
-@router.post(
-    "/upload",
-    response_model=ObservationResponse,
-    status_code=status.HTTP_201_CREATED,
-)
-def upload_observation_route(
     farm_id: int = Form(...),
     crop_id: int = Form(...),
     file: UploadFile = File(...),

@@ -24,8 +24,13 @@ class Settings:
     CLOUDINARY_CLOUD_NAME: str | None = os.getenv("CLOUDINARY_CLOUD_NAME")
     CLOUDINARY_API_KEY: str | None = os.getenv("CLOUDINARY_API_KEY")
     CLOUDINARY_API_SECRET: str | None = os.getenv("CLOUDINARY_API_SECRET")
-    CLOUDINARY_URL: str | None = os.getenv("CLOUDINARY_URL")
+    CLOUDINARY_URL: str | None = os.getenv("CLOUDINARY_URL")    # Image Quality Threshold Configs
+    IMAGE_QUALITY_MIN_WIDTH: int = int(os.getenv("IMAGE_QUALITY_MIN_WIDTH", "200"))
+    IMAGE_QUALITY_MIN_HEIGHT: int = int(os.getenv("IMAGE_QUALITY_MIN_HEIGHT", "200"))
+    IMAGE_QUALITY_BLUR_THRESHOLD: float = float(os.getenv("IMAGE_QUALITY_BLUR_THRESHOLD", "50.0"))
+    IMAGE_QUALITY_ACCEPT_SCORE: float = float(os.getenv("IMAGE_QUALITY_ACCEPT_SCORE", "50.0"))
 
 
 settings = Settings()
+
 
