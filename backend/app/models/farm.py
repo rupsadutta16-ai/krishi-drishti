@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 
-from sqlalchemy import String, Float, DateTime, ForeignKey
+from sqlalchemy import String, Float, DateTime, ForeignKey, Boolean, false
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -28,6 +28,10 @@ class Farm(Base):
     latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    has_sensor: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC), nullable=False

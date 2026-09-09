@@ -15,6 +15,7 @@ export default function AuthModal({ isOpen, onClose, initialTab = 'login', onAut
     email: '',
     password: '',
     role: 'farmer',
+    preferred_language: 'en',
   });
 
   const [loading, setLoading] = useState(false);
@@ -60,6 +61,7 @@ export default function AuthModal({ isOpen, onClose, initialTab = 'login', onAut
         email: regData.email,
         password: regData.password,
         role: regData.role,
+        preferred_language: regData.preferred_language,
       });
       
       setSuccessMsg('Account registered successfully! Logging you in...');
@@ -247,6 +249,21 @@ export default function AuthModal({ isOpen, onClose, initialTab = 'login', onAut
                     <option value="official">Govt Official</option>
                   </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Preferred Language
+                </label>
+                <select
+                  value={regData.preferred_language}
+                  onChange={(e) => setRegData({ ...regData, preferred_language: e.target.value })}
+                  className="w-full px-3 py-1.5 bg-stone-50 border border-stone-300 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-emerald-800 focus:bg-white font-medium text-stone-800"
+                >
+                  <option value="en">English</option>
+                  <option value="hi">Hindi (हिंदी)</option>
+                  <option value="mr">Marathi (मराठी)</option>
+                </select>
               </div>
 
               <div>

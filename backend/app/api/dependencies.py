@@ -7,7 +7,7 @@ from app.core.security import decode_token
 from app.db.database import get_db
 from app.models.user import User
 from jwt.exceptions import InvalidTokenError
-from app.core.exception_handlers import AppException
+from app.core.exceptions import AppException
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login"

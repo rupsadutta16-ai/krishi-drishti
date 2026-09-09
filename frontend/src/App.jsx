@@ -9,8 +9,12 @@ import LanguageSection from './components/LanguageSection';
 import FinalCTA from './components/FinalCTA';
 import FarmerNavbar from './components/farmer/FarmerNavbar';
 import FarmerDashboard from './components/farmer/FarmerDashboard';
+import CropsAndFarmsPage from './components/farmer/CropsAndFarmsPage';
+import EditProfilePage from './components/farmer/EditProfilePage';
+import AddObservationPage from './components/farmer/AddObservationPage';
+import HistoryPage from './components/farmer/HistoryPage';
+import ReportsPage from './components/farmer/ReportsPage';
 import AuthModal from './components/AuthModal';
-import CropHealthModal from './components/CropHealthModal';
 import Footer from './components/Footer';
 
 export default function App() {
@@ -18,7 +22,6 @@ export default function App() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authTab, setAuthTab] = useState('register');
   const [currentUser, setCurrentUser] = useState(null);
-  const [cropModalOpen, setCropModalOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -45,8 +48,21 @@ export default function App() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('refresh_token');
     setCurrentUser(null);
     setCurrentView('landing');
+  };
+
+  const handleEditProfile = () => {
+    setCurrentView('editProfile');
+  };
+
+  const handleOpenAddObservation = () => {
+    setCurrentView('addObservation');
+  };
+
+  const handleNavigate = (view) => {
+    setCurrentView(view);
   };
 
   const handleExploreWorkflow = () => {
@@ -59,16 +75,19 @@ export default function App() {
     }, 100);
   };
 
-  const isFarmerLoggedIn = !!currentUser || currentView === 'dashboard';
+  const farmerViews = ['dashboard', 'cropsAndFarms', 'editProfile', 'addObservation', 'history', 'reports'];
+  const isFarmerLoggedIn = !!currentUser || farmerViews.includes(currentView);
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 font-sans antialiased">
       {/* Show FarmerNavbar when logged in, otherwise public Navbar */}
       {isFarmerLoggedIn ? (
-        <FarmerNavbar 
-          currentUser={currentUser} 
-          onLogout={handleLogout} 
-          onOpenCropModal={() => setCropModalOpen(true)}
+        <FarmerNavbar
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onOpenCropModal={handleOpenAddObservation}
+          onEditProfile={handleEditProfile}
+          onNavigate={handleNavigate}
         />
       ) : (
         <Navbar 
@@ -114,11 +133,26 @@ export default function App() {
         </>
       ) : (
         <div className="pt-14">
-          {/* Farmer & Field Advisory Dashboard */}
-          <FarmerDashboard 
-            currentUser={currentUser} 
-            onOpenCropModal={() => setCropModalOpen(true)}
-          />
+          {currentView === 'editProfile' ? (
+            <EditProfilePage onBack={() => setCurrentView('dashboard')} />
+          ) : currentView === 'cropsAndFarms' ? (
+            <CropsAndFarmsPage
+              onBack={() => setCurrentView('dashboard')}
+              onOpenCropModal={handleOpenAddObservation}
+            />
+          ) : currentView === 'addObservation' ? (
+            <AddObservationPage onBack={() => setCurrentView('dashboard')} />
+          ) : currentView === 'history' ? (
+            <HistoryPage onBack={() => setCurrentView('dashboard')} />
+          ) : currentView === 'reports' ? (
+            <ReportsPage onBack={() => setCurrentView('dashboard')} />
+          ) : (
+            <FarmerDashboard
+              currentUser={currentUser}
+              onOpenCropModal={handleOpenAddObservation}
+              onEditProfile={handleEditProfile}
+            />
+          )}
         </div>
       )}
 
@@ -128,12 +162,6 @@ export default function App() {
         onClose={handleCloseAuth} 
         initialTab={authTab}
         onAuthSuccess={handleAuthSuccess}
-      />
-
-      {/* Crop Health Diagnosis Scanner Modal */}
-      <CropHealthModal 
-        isOpen={cropModalOpen} 
-        onClose={() => setCropModalOpen(false)} 
       />
     </div>
   );

@@ -24,3 +24,8 @@ from app.enums.crop import (
 from app.enums.observation import (
     ObservationStatus,
 )
+
+from app.enums.ai_analysis import (
+    RiskLevel,
+    AIAnalysisStatus,
+)

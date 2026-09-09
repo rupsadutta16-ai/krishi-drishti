@@ -4,11 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import farm
 from app.api.routes import crop
 from app.api.routes import observation
+from app.api.routes import ai_analysis
 from app.api.routes import auth
 from app.api.routes import options
 from app.core.config import settings
 from app.core.exceptions import AppException
 from app.core.exception_handlers import app_exception_handler
+from app.db.database import ensure_schema
+import app.models  # ensure models are registered
+
+# Create missing tables and patch columns (e.g. farms.has_sensor)
+ensure_schema()
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -52,6 +58,11 @@ app.include_router(
     observation.router,
     prefix="/api/v1"
 )
+app.include_router(
+    ai_analysis.router,
+    prefix="/api/v1"
+)
+
 
 
 

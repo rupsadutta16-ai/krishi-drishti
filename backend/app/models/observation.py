@@ -50,3 +50,10 @@ class Observation(Base):
     farmer: Mapped["User"] = relationship(back_populates="observations")
     farm: Mapped["Farm"] = relationship(back_populates="observations")
     crop: Mapped["Crop"] = relationship(back_populates="observations")
+    ai_analyses: Mapped[list["AIAnalysis"]] = relationship(
+        back_populates="observation", cascade="all, delete-orphan"
+    )
+    sensor_observations: Mapped[list["SensorObservation"]] = relationship(
+        back_populates="observation", cascade="all, delete-orphan"
+    )
+

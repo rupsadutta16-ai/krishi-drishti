@@ -11,6 +11,7 @@ from app.services.farm_service import (
     get_farm,
     update_farm,
     delete_farm,
+    toggle_farm_sensor,
 )
 
 router = APIRouter(prefix="/farmer/farms", tags=["Farms"])
@@ -66,6 +67,19 @@ def update_farm_route(
     db: Session = Depends(get_db),
 ):
     return update_farm(farm_id, farm_data, current_user, db)
+
+
+@router.post(
+    "/{farm_id}/toggle-sensor",
+    response_model=FarmResponse,
+    status_code=status.HTTP_200_OK,
+)
+def toggle_sensor_route(
+    farm_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return toggle_farm_sensor(farm_id, current_user, db)
 
 
 @router.delete(

@@ -6,6 +6,20 @@ const CROP_TYPES = [
   "Rice", "Cotton", "Wheat", "Soybean", "Tomato", "Maize", "Sugarcane", "Pulses", "Other"
 ];
 
+// Rice varieties enum options
+const CROP_VARIETIES = [
+  "Basmati",
+  "Sona Masoori",
+  "IR64",
+  "Swarna",
+  "Ponni",
+  "PR126",
+  "Indrayani",
+  "Black Rice",
+  "Jasmine",
+  "Other"
+];
+
 const GROWTH_STAGES = [
   "Sowing", "Germination", "Vegetative", "Flowering", "Fruiting", "Harvesting", "Completed"
 ];
@@ -196,14 +210,19 @@ export default function AddCropModal({ isOpen, onClose, farms = [], onSuccess, o
               <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-1.5">
                 Variety / Cultivar
               </label>
-              <input
-                type="text"
+              <select
                 name="variety"
                 value={formData.variety}
                 onChange={handleChange}
-                placeholder="e.g. Indrayani / Basmati"
                 className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm font-medium text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:bg-white transition-colors"
-              />
+              >
+                <option value="">Select Variety</option>
+                {CROP_VARIETIES.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

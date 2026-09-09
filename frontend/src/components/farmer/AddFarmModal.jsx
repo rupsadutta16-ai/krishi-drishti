@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sprout, MapPin, AlertCircle, CheckCircle2, RefreshCw, Compass } from 'lucide-react';
 import { createFarm } from '../../api/farms';
+import LeafletMapPicker from './LeafletMapPicker';
 
 const MAHARASHTRA_DISTRICTS = [
   "Ahmednagar", "Akola", "Amravati", "Aurangabad", "Beed", "Bhandara",
@@ -105,10 +106,11 @@ export default function AddFarmModal({ isOpen, onClose, onSuccess }) {
       }, 700);
     } catch (err) {
       setLoading(false);
-      const detail = err.response?.data?.detail;
+      const data = err.response?.data;
+      const detail = data?.detail ?? data?.message;
       if (Array.isArray(detail)) {
         setErrorMsg(detail.map((d) => d.msg || d.message).join(', '));
-      } else if (typeof detail === 'string') {
+      } else if (typeof detail === 'string' && detail.trim()) {
         setErrorMsg(detail);
       } else {
         setErrorMsg('Failed to create farm. Please check your inputs and try again.');
@@ -262,7 +264,7 @@ export default function AddFarmModal({ isOpen, onClose, onSuccess }) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Compass className="h-4 w-4 text-emerald-800" />
-                  <span className="text-xs font-bold text-stone-800">Field Coordinates</span>
+                  <span className="text-xs font-bold text-stone-800">Field Coordinates (GPS)</span>
                 </div>
                 <button
                   type="button"
@@ -281,10 +283,10 @@ export default function AddFarmModal({ isOpen, onClose, onSuccess }) {
 
               {locMessage && (
                 <p className={`text-xs font-medium ${
-                  locStatus === 'success' 
-                    ? 'text-emerald-700' 
-                    : locStatus === 'denied' 
-                    ? 'text-amber-700' 
+                  locStatus === 'success'
+                    ? 'text-emerald-700'
+                    : locStatus === 'denied'
+                    ? 'text-amber-700'
                     : 'text-stone-600'
                 }`}>
                   {locMessage}
@@ -296,6 +298,21 @@ export default function AddFarmModal({ isOpen, onClose, onSuccess }) {
                 </p>
               )}
             </div>
+          </div>
+
+          {/* Map Picker */}
+          <div>
+            <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2">
+              Or Select on Map
+            </label>
+            <LeafletMapPicker
+              value={coords}
+              onChange={(c) => {
+                setCoords(c);
+                setLocStatus('success');
+                setLocMessage(`Location selected (${c.latitude.toFixed(4)}°, ${c.longitude.toFixed(4)}°)`);
+              }}
+            />
           </div>
 
           {/* Action Buttons */}

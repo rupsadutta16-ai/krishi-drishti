@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 from app.models.farm import Farm
 from app.models.user import User
 from app.schemas.farm import FarmCreate, FarmUpdate
-from app.core.exception_handlers import AppException
+from sqlalchemy.exc import OperationalError, ProgrammingError
+
+from app.core.exceptions import AppException
 
 
 def _require_farmer(current_user: User) -> None:
@@ -53,11 +55,22 @@ def create_farm(
         state=farm_data.state.value if farm_data.state else None,
         latitude=farm_data.latitude,
         longitude=farm_data.longitude,
+        has_sensor=bool(farm_data.has_sensor),
     )
 
     db.add(farm)
-    db.commit()
-    db.refresh(farm)
+    try:
+        db.commit()
+        db.refresh(farm)
+    except (OperationalError, ProgrammingError) as exc:
+        db.rollback()
+        raise AppException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            message=(
+                "Farm could not be saved because the database schema is out of date. "
+                "Restart the API so missing columns (such as has_sensor) can be added."
+            ),
+        ) from exc
 
     return farm
 
@@ -112,6 +125,25 @@ def update_farm(
 
     if farm_data.longitude is not None:
         farm.longitude = farm_data.longitude
+
+    if farm_data.has_sensor is not None:
+        farm.has_sensor = farm_data.has_sensor
+
+    db.commit()
+    db.refresh(farm)
+
+    return farm
+
+
+def toggle_farm_sensor(
+    farm_id: int,
+    current_user: User,
+    db: Session,
+) -> Farm:
+    _require_farmer(current_user)
+    farm = _get_own_farm(farm_id, current_user, db)
+
+    farm.has_sensor = not farm.has_sensor
 
     db.commit()
     db.refresh(farm)

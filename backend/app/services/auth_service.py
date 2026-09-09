@@ -19,7 +19,7 @@ from app.models.user import User
 from app.models.farmer_profile import FarmerProfile
 from app.models.expert_profile import ExpertProfile
 from app.models.official_profile import OfficialProfile
-from app.core.exception_handlers import AppException
+from app.core.exceptions import AppException
 from app.core.security import (
     hash_password,
     verify_password,
@@ -73,7 +73,10 @@ def register_user(
         db.flush()
 
         if user_data.role == "farmer":
-            profile = FarmerProfile(user_id=new_user.id)
+            profile = FarmerProfile(
+                user_id=new_user.id,
+                preferred_language=user_data.preferred_language
+            )
         elif user_data.role == "expert":
             profile = ExpertProfile(user_id=new_user.id)
         else:

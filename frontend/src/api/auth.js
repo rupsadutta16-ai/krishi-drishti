@@ -11,6 +11,7 @@ export async function registerUser(userData) {
     email: userData.email,
     password: userData.password,
     role: userData.role || 'farmer',
+    preferred_language: userData.preferred_language || 'en',
   });
   return response.data;
 }
