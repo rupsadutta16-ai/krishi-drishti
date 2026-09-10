@@ -14,6 +14,8 @@ import EditProfilePage from './components/farmer/EditProfilePage';
 import AddObservationPage from './components/farmer/AddObservationPage';
 import HistoryPage from './components/farmer/HistoryPage';
 import ReportsPage from './components/farmer/ReportsPage';
+import CasesPage from './components/farmer/CasesPage';
+import ExpertDashboard from './components/expert/ExpertDashboard';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 
@@ -27,7 +29,15 @@ export default function App() {
     const token = localStorage.getItem('token');
     if (token) {
       // User is authenticated
-      setCurrentUser({ authenticated: true });
+      import('./api/auth').then(({ getCurrentUser }) => {
+        getCurrentUser()
+          .then((userData) => {
+            setCurrentUser({ authenticated: true, role: userData.role, data: userData });
+          })
+          .catch(() => {
+            setCurrentUser({ authenticated: true });
+          });
+      });
       setCurrentView('dashboard');
     }
   }, []);
@@ -42,7 +52,15 @@ export default function App() {
   };
 
   const handleAuthSuccess = (data) => {
-    setCurrentUser({ authenticated: true, data });
+    import('./api/auth').then(({ getCurrentUser }) => {
+      getCurrentUser()
+        .then((userData) => {
+          setCurrentUser({ authenticated: true, role: userData.role, data: userData });
+        })
+        .catch(() => {
+          setCurrentUser({ authenticated: true, role: data?.role, data });
+        });
+    });
     setCurrentView('dashboard');
   };
 
@@ -75,13 +93,15 @@ export default function App() {
     }, 100);
   };
 
-  const farmerViews = ['dashboard', 'cropsAndFarms', 'editProfile', 'addObservation', 'history', 'reports'];
-  const isFarmerLoggedIn = !!currentUser || farmerViews.includes(currentView);
+  const farmerViews = ['dashboard', 'cropsAndFarms', 'editProfile', 'addObservation', 'history', 'reports', 'cases'];
+  const isLoggedIn = !!currentUser || !!localStorage.getItem('token');
+  const isFarmerLoggedIn = isLoggedIn || farmerViews.includes(currentView);
+  const isExpert = (currentUser?.role === 'expert' || currentUser?.data?.role === 'expert') && isLoggedIn;
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 font-sans antialiased">
-      {/* Show FarmerNavbar when logged in, otherwise public Navbar */}
-      {isFarmerLoggedIn ? (
+      {/* Show FarmerNavbar when logged in, otherwise public Navbar (Expert has its own nav) */}
+      {isExpert ? null : isFarmerLoggedIn ? (
         <FarmerNavbar
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -96,7 +116,9 @@ export default function App() {
       )}
 
       {/* Dynamic View Content */}
-      {!isFarmerLoggedIn ? (
+      {isExpert ? (
+        <ExpertDashboard onLogout={handleLogout} />
+      ) : !isFarmerLoggedIn ? (
         <>
           {/* Public Hero Section */}
           <Hero 
@@ -146,6 +168,8 @@ export default function App() {
             <HistoryPage onBack={() => setCurrentView('dashboard')} />
           ) : currentView === 'reports' ? (
             <ReportsPage onBack={() => setCurrentView('dashboard')} />
+          ) : currentView === 'cases' ? (
+            <CasesPage onBack={() => setCurrentView('dashboard')} />
           ) : (
             <FarmerDashboard
               currentUser={currentUser}

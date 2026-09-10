@@ -7,6 +7,8 @@ from app.models.crop import Crop
 from app.models.observation import Observation
 from app.models.ai_analysis import AIAnalysis
 from app.models.sensor_observation import SensorObservation
+from app.models.agricultural_case import AgriculturalCase
+from app.models.expert_validation import ExpertValidation
 
 __all__ = [
     "User",
@@ -18,4 +20,6 @@ __all__ = [
     "Observation",
     "AIAnalysis",
     "SensorObservation",
+    "AgriculturalCase",
+    "ExpertValidation",
 ]

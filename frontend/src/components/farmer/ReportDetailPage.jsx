@@ -22,6 +22,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { getProfile } from '../../api/profile';
+import { reportObservationToExpert, getCaseDetail } from '../../api/cases';
 import jsPDF from 'jspdf';
 
 
@@ -144,8 +145,33 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
     setTimeout(() => setToastMsg(''), 4000);
   };
 
-  const handleReportToExpert = () => {
-    showToast(`Report #${report.id} submitted to Krishi Extension Expert for verification!`);
+  const [submittingToExpert, setSubmittingToExpert] = useState(false);
+  const [submittedCase, setSubmittedCase] = useState(null);
+
+  useEffect(() => {
+    if (obs?.case_id) {
+      getCaseDetail(obs.case_id)
+        .then((res) => setSubmittedCase(res.data))
+        .catch(() => {});
+    }
+  }, [obs?.case_id]);
+
+  const handleReportToExpert = async () => {
+    if (!report?.observation_id) {
+      showToast('No observation linked to this report.', 'error');
+      return;
+    }
+    setSubmittingToExpert(true);
+    try {
+      const response = await reportObservationToExpert(report.observation_id);
+      setSubmittedCase(response.data);
+      showToast('Report submitted to extension expert for review.', 'success');
+    } catch (err) {
+      const message = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit report.';
+      showToast(message, 'error');
+    } finally {
+      setSubmittingToExpert(false);
+    }
   };
 
   const loadImageAsBase64 = async (url) => {
@@ -886,10 +912,25 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button
             onClick={handleReportToExpert}
-            className="flex-1 flex items-center justify-center space-x-2 px-5 py-3.5 bg-amber-800 hover:bg-amber-900 text-white font-bold text-sm rounded-xl shadow-sm transition-colors cursor-pointer border border-amber-700"
+            disabled={
+              submittingToExpert ||
+              report?.observation?.status?.toLowerCase() === 'pending_expert' ||
+              report?.observation?.status?.toLowerCase() === 'validated' ||
+              submittedCase?.status === 'pending_expert' ||
+              submittedCase?.status === 'validated'
+            }
+            className="flex-1 flex items-center justify-center space-x-2 px-5 py-3.5 bg-amber-800 hover:bg-amber-900 disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold text-sm rounded-xl shadow-sm transition-colors cursor-pointer border border-amber-700"
           >
             <Send className="h-4 w-4 text-amber-200" />
-            <span>Submit Report to Extension Expert</span>
+            <span>
+              {submittingToExpert
+                ? 'Submitting...'
+                : (report?.observation?.status?.toLowerCase() === 'pending_expert' || submittedCase?.status === 'pending_expert')
+                ? 'Awaiting Expert Review'
+                : (report?.observation?.status?.toLowerCase() === 'validated' || submittedCase?.status === 'validated')
+                ? 'Expert Validated ✓'
+                : 'Submit Report to Extension Expert'}
+            </span>
           </button>
           <button
             onClick={() => setExpertModalOpen(true)}
@@ -899,6 +940,49 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
             <span>View Expert Contact Details</span>
           </button>
         </div>
+
+        {/* Expert validation card */}
+        {submittedCase?.validations?.length > 0 && (
+          <div className="mt-6 p-4 rounded-xl border border-green-200 bg-green-50">
+            <h3 className="font-semibold text-green-800 mb-2">
+              Expert Validation & Extension Advice
+            </h3>
+            {submittedCase.validations.map((v) => (
+              <div key={v.id} className="mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-medium text-green-700">
+                    Verdict: {v.validation_result?.replace('_', ' ').toUpperCase()}
+                  </span>
+                </div>
+                {v.corrected_disease && (
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Corrected Disease:</span> {v.corrected_disease}
+                  </p>
+                )}
+                {v.corrected_pest && (
+                  <p className="text-sm text-gray-700">
+                    <span className="font-medium">Corrected Pest:</span> {v.corrected_pest}
+                  </p>
+                )}
+                {v.comments && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    <span className="font-medium">Expert Comments:</span> {v.comments}
+                  </p>
+                )}
+                {v.treatment_recommendation && (
+                  <div className="mt-2 p-3 bg-white rounded-lg border border-green-100">
+                    <p className="text-sm font-semibold text-green-800">IPM Recommendation:</p>
+                    <p className="text-sm text-gray-700">{v.treatment_recommendation}</p>
+                  </div>
+                )}
+                <p className="text-xs text-gray-400 mt-1">
+                  Reviewed by {v.expert_name || `Expert ID ${v.expert_id}`}
+                  {v.created_at ? ` · ${new Date(v.created_at).toLocaleDateString()}` : ''}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
 
       </div>
     </div>

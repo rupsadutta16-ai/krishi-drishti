@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   Sprout, LayoutDashboard, Wheat, Stethoscope, FileBarChart, History,
   Bell, User, LogOut, Menu, X, Camera,
-  ChevronDown, Settings
+  ChevronDown, Settings, FolderOpen
 } from 'lucide-react';
 
 export default function FarmerNavbar({ currentUser, onLogout, onOpenCropModal, onEditProfile, onNavigate }) {
@@ -27,6 +27,7 @@ export default function FarmerNavbar({ currentUser, onLogout, onOpenCropModal, o
     { name: 'Diagnose', icon: Stethoscope, id: 'addObservation' },
     { name: 'Reports', icon: FileBarChart, id: 'reports' },
     { name: 'History', icon: History, id: 'history' },
+    { name: 'My Cases', label: 'My Cases', icon: FolderOpen, id: 'cases' },
   ];
 
   const handleNavClick = (item) => {

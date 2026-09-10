@@ -7,6 +7,8 @@ from app.api.routes import observation
 from app.api.routes import ai_analysis
 from app.api.routes import auth
 from app.api.routes import options
+from app.api.routes import case
+from app.api.routes import expert
 from app.core.config import settings
 from app.core.exceptions import AppException
 from app.core.exception_handlers import app_exception_handler
@@ -60,6 +62,14 @@ app.include_router(
 )
 app.include_router(
     ai_analysis.router,
+    prefix="/api/v1"
+)
+app.include_router(
+    case.router,
+    prefix="/api/v1"
+)
+app.include_router(
+    expert.router,
     prefix="/api/v1"
 )
 

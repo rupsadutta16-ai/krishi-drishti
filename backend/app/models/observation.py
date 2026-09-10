@@ -1,4 +1,5 @@
 from datetime import datetime, UTC
+from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import String, Float, Integer, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -6,13 +7,21 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.database import Base
 from app.enums.observation import ObservationStatus
 
+if TYPE_CHECKING:
+    from app.models.agricultural_case import AgriculturalCase
+
 
 class Observation(Base):
     __tablename__ = "observations"
 
     id: Mapped[int] = mapped_column(primary_key=True)
 
-    case_id: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    case_id: Mapped[int | None] = mapped_column(
+        Integer,
+        ForeignKey("agricultural_cases.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
 
     farmer_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False
@@ -50,6 +59,11 @@ class Observation(Base):
     farmer: Mapped["User"] = relationship(back_populates="observations")
     farm: Mapped["Farm"] = relationship(back_populates="observations")
     crop: Mapped["Crop"] = relationship(back_populates="observations")
+    case: Mapped[Optional["AgriculturalCase"]] = relationship(
+        "AgriculturalCase",
+        back_populates="observations",
+        foreign_keys=[case_id],
+    )
     ai_analyses: Mapped[list["AIAnalysis"]] = relationship(
         back_populates="observation", cascade="all, delete-orphan"
     )
