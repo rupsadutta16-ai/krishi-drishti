@@ -4,15 +4,25 @@ from sqlalchemy.orm import Session
 
 from app.models.farm import Farm
 from app.models.user import User
+from app.models.soil_record import FarmSoilRecord
 from app.schemas.farm import FarmCreate, FarmUpdate
+from app.schemas.soil import FarmSoilCreate, FarmSoilUpdate
+from app.services.weather_service import get_environmental_context
 from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from app.core.exceptions import AppException
 
 
+
 def _require_farmer(current_user: User) -> None:
     """Raise 403 if the current user is not a farmer."""
-    if current_user.role != "farmer":
+    # Get role value as a string - handle both enum and string storage
+    if hasattr(current_user.role, "value"):
+        role_val = current_user.role.value  # Enum case
+    else:
+        role_val = str(current_user.role)  # String case from DB
+    
+    if role_val != "farmer":
         raise AppException(
             status_code=status.HTTP_403_FORBIDDEN,
             message="Only farmers can manage farms",
@@ -163,3 +173,102 @@ def delete_farm(
     db.commit()
 
     return {"message": "Farm deleted successfully"}
+
+
+# ── Weather & Soil Context ──────────────────────────────────────────
+
+def get_farm_weather(
+    farm_id: int,
+    db: Session,
+) -> dict:
+    """Fetch environmental/weather context for a farm via weather_service."""
+    farm = db.scalar(select(Farm).where(Farm.id == farm_id))
+    if not farm:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Farm not found",
+        )
+
+    return get_environmental_context(farm=farm, db=db)
+
+
+def get_farm_soil(
+    farm_id: int,
+    db: Session,
+) -> FarmSoilRecord:
+    """
+    Get soil health card record for a farm.
+    Returns 404 if the farmer has not entered any Soil Health Card data.
+    """
+    farm = db.scalar(select(Farm).where(Farm.id == farm_id))
+    if not farm:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="Farm not found",
+        )
+
+    soil_record = db.scalar(
+        select(FarmSoilRecord).where(FarmSoilRecord.farm_id == farm_id)
+    )
+    if not soil_record:
+        raise AppException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            message="No Soil Health Card submitted for this farm",
+        )
+
+    return soil_record
+
+
+def save_farm_soil(
+    farm_id: int,
+    soil_data: FarmSoilCreate,
+    current_user: User,
+    db: Session,
+) -> FarmSoilRecord:
+    """
+    Persist or update Soil Health Card data for a farm owned by the current farmer.
+    """
+    _require_farmer(current_user)
+    farm = _get_own_farm(farm_id, current_user, db)
+
+    soil_record = db.scalar(
+        select(FarmSoilRecord).where(FarmSoilRecord.farm_id == farm.id)
+    )
+
+    if not soil_record:
+        soil_record = FarmSoilRecord(
+            farm_id=farm.id,
+            sample_no=soil_data.sample_no,
+            test_date=soil_data.test_date,
+            ph=soil_data.ph,
+            ec=soil_data.ec,
+            oc=soil_data.oc,
+            nitrogen=soil_data.nitrogen,
+            phosphorus=soil_data.phosphorus,
+            potassium=soil_data.potassium,
+            sulphur=soil_data.sulphur,
+            zinc=soil_data.zinc,
+            iron=soil_data.iron,
+            copper=soil_data.copper,
+            manganese=soil_data.manganese,
+            boron=soil_data.boron,
+            soil_type=soil_data.soil_type,
+            texture=soil_data.texture,
+            moisture=soil_data.moisture,
+        )
+        db.add(soil_record)
+    else:
+        # Update existing record
+        for field in [
+            "sample_no", "test_date", "ph", "ec", "oc", "nitrogen",
+            "phosphorus", "potassium", "sulphur", "zinc", "iron",
+            "copper", "manganese", "boron", "soil_type", "texture", "moisture"
+        ]:
+            val = getattr(soil_data, field, None)
+            if val is not None:
+                setattr(soil_record, field, val)
+
+    db.commit()
+    db.refresh(soil_record)
+    return soil_record
+

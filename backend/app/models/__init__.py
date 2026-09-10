@@ -9,6 +9,7 @@ from app.models.ai_analysis import AIAnalysis
 from app.models.sensor_observation import SensorObservation
 from app.models.agricultural_case import AgriculturalCase
 from app.models.expert_validation import ExpertValidation
+from app.models.soil_record import FarmSoilRecord
 
 __all__ = [
     "User",
@@ -22,4 +23,6 @@ __all__ = [
     "SensorObservation",
     "AgriculturalCase",
     "ExpertValidation",
+    "FarmSoilRecord",
 ]
+

@@ -1,6 +1,7 @@
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
+import sqlalchemy
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.exceptions import AppException
 from app.enums.case import CaseStatus
@@ -13,8 +14,13 @@ from app.schemas.expert_validation import ExpertValidationCreate, ExpertValidati
 
 
 def _require_expert(current_user: User) -> User:
-    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role_val != "expert" and current_user.role != UserRole.EXPERT:
+    # Get role value as a string - handle both enum and string storage
+    if hasattr(current_user.role, "value"):
+        role_val = current_user.role.value  # Enum case
+    else:
+        role_val = str(current_user.role)  # String case from DB
+    
+    if role_val != "expert":
         raise AppException(status_code=403, detail="Only experts can perform this action")
     return current_user
 
@@ -27,6 +33,12 @@ def list_review_queue(
     status = status_filter if status_filter else CaseStatus.PENDING_EXPERT
     return (
         db.query(AgriculturalCase)
+        .options(
+            # Eager-load relationships so CaseResponse can serialize them
+            sqlalchemy.orm.joinedload(AgriculturalCase.farm),
+            sqlalchemy.orm.joinedload(AgriculturalCase.crop),
+            sqlalchemy.orm.joinedload(AgriculturalCase.farmer),
+        )
         .filter(AgriculturalCase.status == status)
         .order_by(AgriculturalCase.updated_at.asc())
         .all()
@@ -36,7 +48,19 @@ def list_review_queue(
 def get_review_case_detail(current_user: User, case_id: int, db: Session) -> AgriculturalCase:
     _require_expert(current_user)
 
-    case = db.get(AgriculturalCase, case_id)
+    case = (
+        db.query(AgriculturalCase)
+        .options(
+            sqlalchemy.orm.joinedload(AgriculturalCase.farm),
+            sqlalchemy.orm.joinedload(AgriculturalCase.crop),
+            sqlalchemy.orm.joinedload(AgriculturalCase.farmer),
+            sqlalchemy.orm.joinedload(AgriculturalCase.observations),
+            sqlalchemy.orm.joinedload(AgriculturalCase.validations)
+            .joinedload(ExpertValidation.expert),
+        )
+        .filter(AgriculturalCase.id == case_id)
+        .first()
+    )
     if not case:
         raise AppException(status_code=404, detail="Case not found")
     if case.status == CaseStatus.CLOSED:
@@ -83,8 +107,9 @@ def validate_case(
     # Update all PENDING_EXPERT observations in the case to VALIDATED
     if case.status == CaseStatus.VALIDATED:
         for obs in case.observations:
-            obs_status = obs.status.value if hasattr(obs.status, "value") else str(obs.status)
-            if obs.status == ObservationStatus.PENDING_EXPERT or obs_status.upper() == "PENDING_EXPERT":
+            # Get status as string for consistent comparison
+            obs_status_str = obs.status.value if hasattr(obs.status, "value") else str(obs.status)
+            if obs_status_str == "PENDING_EXPERT":
                 obs.status = ObservationStatus.VALIDATED
                 db.add(obs)
 
@@ -92,6 +117,7 @@ def validate_case(
     db.commit()
     db.refresh(validation)
 
-    # Populate expert name/org from joined relationship for the response
-    db.refresh(expert)
+    # Populate expert relationship on validation so response serializes expert_name/org
+    db.refresh(validation)
+    validation.expert = expert
     return validation

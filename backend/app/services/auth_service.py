@@ -55,29 +55,35 @@ def register_user(
             message="Email already exists", status_code=status.HTTP_409_CONFLICT
         )
 
-    # Normal public registration always assigns the FARMER role.
-    # Expert / Official roles are assigned via separate admin flows.
-    from app.schemas.user import UserRole
-    enforced_role = UserRole.FARMER
+    # Map user-provided role to UserRole enum
+    from app.models.user import UserRole
+    raw_role = user_data.role.value if hasattr(user_data.role, "value") else str(user_data.role)
+    raw_role = raw_role.lower().strip()
+    role_map = {
+        "farmer": UserRole.FARMER,
+        "expert": UserRole.EXPERT,
+        "official": UserRole.OFFICIAL,
+    }
+    assigned_role = role_map.get(raw_role, UserRole.FARMER)
 
     new_user = User(
         name=user_data.name,
         username=user_data.username,
         email=user_data.email,
         password_hash=hash_password(user_data.password),
-        role=enforced_role,
+        role=assigned_role,
     )
 
     try:
         db.add(new_user)
         db.flush()
 
-        if user_data.role == "farmer":
+        if assigned_role == UserRole.FARMER:
             profile = FarmerProfile(
                 user_id=new_user.id,
                 preferred_language=user_data.preferred_language
             )
-        elif user_data.role == "expert":
+        elif assigned_role == UserRole.EXPERT:
             profile = ExpertProfile(user_id=new_user.id)
         else:
             profile = OfficialProfile(user_id=new_user.id)
@@ -113,11 +119,15 @@ def login_user(form_data: OAuth2PasswordRequestForm, db: Session):
 
     db.commit()
 
+    role_val = user.role.value if hasattr(user.role, "value") else str(user.role)
+
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
+        "role": role_val,
     }
+
     
 def refresh(token_data: RefreshTokenRequest,
     db: Session):

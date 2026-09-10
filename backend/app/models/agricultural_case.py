@@ -62,3 +62,11 @@ class AgriculturalCase(Base):
         back_populates="case",
         order_by="ExpertValidation.created_at",
     )
+
+    @property
+    def farmer_name(self) -> Optional[str]:
+        return self.farmer.name if self.farmer else None
+
+    @property
+    def farm_name(self) -> Optional[str]:
+        return self.farm.farm_name if self.farm else None

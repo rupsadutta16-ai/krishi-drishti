@@ -5,6 +5,7 @@ from app.db.database import get_db
 from app.models.user import User
 from app.api.dependencies import get_current_user
 from app.schemas.farm import FarmCreate, FarmUpdate, FarmResponse
+from app.schemas.soil import FarmSoilCreate, FarmSoilResponse
 from app.services.farm_service import (
     create_farm,
     list_farms,
@@ -12,10 +13,65 @@ from app.services.farm_service import (
     update_farm,
     delete_farm,
     toggle_farm_sensor,
+    get_farm_weather,
+    get_farm_soil,
+    save_farm_soil,
 )
 
 router = APIRouter(prefix="/farmer/farms", tags=["Farms"])
 
+
+# ── Weather & Soil Endpoints ───────────────────────────────────────
+
+@router.get(
+    "/{farm_id}/weather",
+    tags=["Expert Portal", "Farms"],
+    status_code=status.HTTP_200_OK,
+)
+def get_farm_weather_route(
+    farm_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get current weather/environmental context for a farm."""
+    return get_farm_weather(farm_id, db)
+
+
+@router.get(
+    "/{farm_id}/soil",
+    response_model=FarmSoilResponse,
+    tags=["Expert Portal", "Farms"],
+    status_code=status.HTTP_200_OK,
+)
+def get_farm_soil_route(
+    farm_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get soil information for a farm.
+    Returns 404 if farmer has not entered Soil Health Card data.
+    """
+    return get_farm_soil(farm_id, db)
+
+
+@router.post(
+    "/{farm_id}/soil",
+    response_model=FarmSoilResponse,
+    tags=["Farms"],
+    status_code=status.HTTP_200_OK,
+)
+def save_farm_soil_route(
+    farm_id: int,
+    soil_data: FarmSoilCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save or update Soil Health Card data for a farm."""
+    return save_farm_soil(farm_id, soil_data, current_user, db)
+
+
+# ── Farm Management CRUD ──────────────────────────────────────────
 
 @router.post(
     "",

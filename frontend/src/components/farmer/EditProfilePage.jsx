@@ -51,6 +51,38 @@ export default function EditProfilePage({ onBack }) {
   const [pwError, setPwError] = useState('');
   const [pwSuccess, setPwSuccess] = useState('');
 
+  const populateFromUser = (user, opts = options) => {
+    if (!user) return;
+    setName(user.name || '');
+
+    // 1. Farmer profile
+    const fp = user.farmer_profile;
+    if (fp) {
+      if (fp.phone) setPhone(fp.phone);
+      if (fp.preferred_language) setPreferredLanguage(fp.preferred_language);
+      if (fp.village) setVillage(fp.village);
+      if (fp.state) setStateName(fp.state);
+      if (fp.district) setDistrict(fp.district);
+    }
+
+    // 2. Expert profile
+    const ep = user.expert_profile;
+    if (ep) {
+      if (ep.specialization) setSpecialization(ep.specialization);
+      if (ep.qualification) setQualification(ep.qualification);
+      if (ep.organization) setOrganization(ep.organization);
+    }
+
+    // 3. Official profile
+    const op = user.official_profile;
+    if (op) {
+      if (op.department) setDepartment(op.department);
+      if (op.designation) setDesignation(op.designation);
+      if (op.state && !fp?.state) setStateName(op.state);
+      if (op.district && !fp?.district) setDistrict(op.district);
+    }
+  };
+
   useEffect(() => {
     const initData = async () => {
       setLoadingProfile(true);
@@ -65,25 +97,7 @@ export default function EditProfilePage({ onBack }) {
           setOptions(fieldOpts);
         }
 
-        setName(user.name || '');
-
-        // Role-based profile initial values
-        if (user.role === 'farmer' && user.farmer_profile) {
-          setPhone(user.farmer_profile.phone || '');
-          setPreferredLanguage(user.farmer_profile.preferred_language || 'en');
-          setVillage(user.farmer_profile.village || '');
-          setStateName(user.farmer_profile.state || '');
-          setDistrict(user.farmer_profile.district || '');
-        } else if (user.role === 'expert' && user.expert_profile) {
-          setSpecialization(user.expert_profile.specialization || '');
-          setQualification(user.expert_profile.qualification || '');
-          setOrganization(user.expert_profile.organization || '');
-        } else if (user.role === 'official' && user.official_profile) {
-          setDepartment(user.official_profile.department || '');
-          setDesignation(user.official_profile.designation || '');
-          setStateName(user.official_profile.state || '');
-          setDistrict(user.official_profile.district || '');
-        }
+        populateFromUser(user, fieldOpts);
       } catch (err) {
         console.error('Error loading profile data:', err);
       } finally {
@@ -148,9 +162,10 @@ export default function EditProfilePage({ onBack }) {
 
       setProfileSuccess('Profile updated successfully!');
       
-      // Refresh local user state
+      // Refresh local user state and prefill updated fields
       const updatedUser = await getCurrentUser();
       setUserData(updatedUser);
+      populateFromUser(updatedUser);
 
     } catch (err) {
       console.error('Profile update error:', err);
@@ -166,6 +181,7 @@ export default function EditProfilePage({ onBack }) {
       setProfileLoading(false);
     }
   };
+
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -209,7 +225,13 @@ export default function EditProfilePage({ onBack }) {
           className="flex items-center space-x-2 text-sm font-bold text-emerald-800 hover:text-emerald-900 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          <span>Back to Workspace</span>
+          <span>
+            {userData?.role === 'expert'
+              ? 'Back to Expert Portal'
+              : userData?.role === 'official'
+              ? 'Back to Dashboard'
+              : 'Back to Workspace'}
+          </span>
         </button>
 
         {/* Page Header */}
@@ -338,6 +360,9 @@ export default function EditProfilePage({ onBack }) {
                         className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:bg-white font-medium"
                       >
                         <option value="">Select State</option>
+                        {stateName && !options?.states?.some((s) => s.value === stateName) && (
+                          <option value={stateName}>{stateName}</option>
+                        )}
                         {options?.states?.map((st) => (
                           <option key={st.value} value={st.value}>
                             {st.label}
@@ -360,6 +385,9 @@ export default function EditProfilePage({ onBack }) {
                         <option value="">
                           {stateName ? 'Select District' : 'First select a state'}
                         </option>
+                        {district && !availableDistricts.includes(district) && (
+                          <option value={district}>{district}</option>
+                        )}
                         {availableDistricts.map((d) => (
                           <option key={d} value={d}>
                             {d}
@@ -367,6 +395,7 @@ export default function EditProfilePage({ onBack }) {
                         ))}
                       </select>
                     </div>
+
 
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-bold text-stone-700 mb-1.5">

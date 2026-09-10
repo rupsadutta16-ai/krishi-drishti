@@ -55,11 +55,17 @@ def require_role(allowed_roles: List[str]):
     Usage: Depends(require_role(["expert"]))
     """
     def _check_role(current_user: User = Depends(get_current_user)) -> User:
-        role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-        if role_val not in allowed_roles and current_user.role not in allowed_roles:
+        # Get role value as a string - handle both enum and string storage
+        if hasattr(current_user.role, "value"):
+            role_val = current_user.role.value  # Enum case
+        else:
+            role_val = str(current_user.role)  # String case from DB
+        
+        # Check if role matches any of the allowed roles
+        if role_val not in allowed_roles:
             raise HTTPException(
                 status_code=403,
-                detail=f"Access restricted. Required roles: {allowed_roles}",
+                detail=f"Access denied. Required role(s): {', '.join(allowed_roles)}. Your role: {role_val}",
             )
         return current_user
-    return _check_role
+    return _check_role

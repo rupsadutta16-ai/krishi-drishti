@@ -1,40 +1,17 @@
+import apiClient from './client';
+
 // Soil Health Card Storage and Rule-Based Agronomic Evaluation Engine
 
 const SOIL_STORAGE_KEY = 'krishi_drishti_soil_records';
 
-// Standard ICAR default sample data for demonstration if none added yet
-const DEFAULT_SOIL_RECORDS = {
-  1: {
-    farm_id: 1,
-    sample_no: 'SHC-2025-MH-9482',
-    test_date: '2025-08-15',
-    ph: 6.8,
-    ec: 0.75, // dS/m
-    oc: 0.55, // %
-    nitrogen: 240, // kg/ha (Low < 280)
-    phosphorus: 18.5, // kg/ha (Medium 11-25)
-    potassium: 210, // kg/ha (Medium 118-280)
-    sulphur: 9.2, // ppm (Low < 10)
-    zinc: 0.45, // ppm (Deficient < 0.6)
-    iron: 5.2, // ppm (Sufficient > 4.5)
-    copper: 0.35, // ppm (Sufficient > 0.2)
-    manganese: 2.8, // ppm (Sufficient > 2.0)
-    boron: 0.42, // ppm (Deficient < 0.5)
-    updated_at: new Date().toISOString(),
-  },
-};
-
 export const getSoilRecords = () => {
   try {
     const raw = localStorage.getItem(SOIL_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(SOIL_STORAGE_KEY, JSON.stringify(DEFAULT_SOIL_RECORDS));
-      return DEFAULT_SOIL_RECORDS;
-    }
+    if (!raw) return {};
     return JSON.parse(raw);
   } catch (e) {
     console.error('Failed to parse soil records:', e);
-    return DEFAULT_SOIL_RECORDS;
+    return {};
   }
 };
 
@@ -43,7 +20,7 @@ export const getSoilByFarmId = (farmId) => {
   return records[farmId] || null;
 };
 
-export const saveSoilRecord = (farmId, data) => {
+export const saveLocalSoilRecord = (farmId, data) => {
   const records = getSoilRecords();
   const updated = {
     ...records,
@@ -56,6 +33,43 @@ export const saveSoilRecord = (farmId, data) => {
   localStorage.setItem(SOIL_STORAGE_KEY, JSON.stringify(updated));
   return updated[farmId];
 };
+
+/**
+ * Fetch soil health card for a farm from the backend API.
+ * Returns null if the farmer has not entered a Soil Health Card.
+ */
+export const fetchFarmSoil = async (farmId) => {
+  if (!farmId) return null;
+  try {
+    const res = await apiClient.get(`/farmer/farms/${farmId}/soil`);
+    if (res?.data) {
+      saveLocalSoilRecord(farmId, res.data);
+      return res.data;
+    }
+    return null;
+  } catch (err) {
+    // 404 indicates no soil health card submitted
+    return null;
+  }
+};
+
+/**
+ * Persist soil health card entry for a farm to the backend database.
+ */
+export const saveFarmSoil = async (farmId, data) => {
+  if (!farmId) throw new Error('Farm ID is required');
+  const res = await apiClient.post(`/farmer/farms/${farmId}/soil`, data);
+  if (res?.data) {
+    saveLocalSoilRecord(farmId, res.data);
+    return res.data;
+  }
+  return saveLocalSoilRecord(farmId, data);
+};
+
+export const saveSoilRecord = (farmId, data) => {
+  return saveLocalSoilRecord(farmId, data);
+};
+
 
 /**
  * Rule-Based Soil Risk Analysis Engine

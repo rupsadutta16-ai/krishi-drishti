@@ -18,18 +18,22 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        "sensor_observations",
-        sa.Column("id", sa.Integer(), nullable=False),
-        sa.Column("observation_id", sa.Integer(), nullable=False),
-        sa.Column("temperature", sa.Float(), nullable=False),
-        sa.Column("humidity", sa.Float(), nullable=False),
-        sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["observation_id"], ["observations.id"], ondelete="CASCADE"
-        ),
-        sa.PrimaryKeyConstraint("id"),
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "sensor_observations" not in inspector.get_table_names():
+        op.create_table(
+            "sensor_observations",
+            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column("observation_id", sa.Integer(), nullable=False),
+            sa.Column("temperature", sa.Float(), nullable=False),
+            sa.Column("humidity", sa.Float(), nullable=False),
+            sa.Column("recorded_at", sa.DateTime(timezone=True), nullable=False),
+            sa.ForeignKeyConstraint(
+                ["observation_id"], ["observations.id"], ondelete="CASCADE"
+            ),
+            sa.PrimaryKeyConstraint("id"),
+        )
+
 
 
 def downgrade() -> None:

@@ -21,6 +21,41 @@ class ObservationSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class FarmBrief(BaseModel):
+    id: int
+    farm_name: str
+    village: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+
+    model_config = {"from_attributes": True}
+
+
+class CropBrief(BaseModel):
+    id: int
+    crop_type: str
+    variety: Optional[str] = None
+    growth_stage: Optional[str] = None
+
+    model_config = {"from_attributes": True}
+
+
+class AIAnalysisBrief(BaseModel):
+    id: int
+    predicted_disease: Optional[str] = None
+    predicted_pest: Optional[str] = None
+    disease_probability: Optional[float] = None
+    pest_probability: Optional[float] = None
+    risk_level: Optional[str] = None
+    confidence_score: Optional[float] = None
+    model_version: str = "v1.0.0"
+    status: str = "PENDING"
+
+    model_config = {"from_attributes": True}
+
+
 class CaseCreate(BaseModel):
     farm_id: int
     crop_id: int
@@ -54,8 +89,11 @@ class CaseResponse(BaseModel):
     description: Optional[str] = None
     status: CaseStatus
     farmer_id: int
+    farmer_name: Optional[str] = None
     farm_id: int
+    farm: Optional[FarmBrief] = None
     crop_id: int
+    crop: Optional[CropBrief] = None
     created_at: datetime
     updated_at: datetime
     observations: List[ObservationSummary] = []

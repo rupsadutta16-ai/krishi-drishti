@@ -18,27 +18,29 @@ import CasesPage from './components/farmer/CasesPage';
 import ExpertDashboard from './components/expert/ExpertDashboard';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
+import { getCurrentUser } from './api/auth';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('landing');
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authTab, setAuthTab] = useState('register');
   const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // User is authenticated
-      import('./api/auth').then(({ getCurrentUser }) => {
-        getCurrentUser()
-          .then((userData) => {
-            setCurrentUser({ authenticated: true, role: userData.role, data: userData });
-          })
-          .catch(() => {
-            setCurrentUser({ authenticated: true });
-          });
-      });
+      getCurrentUser()
+        .then((userData) => {
+          setCurrentUser({ authenticated: true, role: userData.role, data: userData });
+        })
+        .catch(() => {
+          setCurrentUser({ authenticated: true });
+        })
+        .finally(() => setAuthLoading(false));
       setCurrentView('dashboard');
+    } else {
+      setAuthLoading(false);
     }
   }, []);
 
@@ -52,16 +54,19 @@ export default function App() {
   };
 
   const handleAuthSuccess = (data) => {
-    import('./api/auth').then(({ getCurrentUser }) => {
-      getCurrentUser()
-        .then((userData) => {
-          setCurrentUser({ authenticated: true, role: userData.role, data: userData });
-        })
-        .catch(() => {
-          setCurrentUser({ authenticated: true, role: data?.role, data });
-        });
-    });
+    setAuthLoading(true);
     setCurrentView('dashboard');
+    if (data?.role) {
+      setCurrentUser({ authenticated: true, role: data.role, data });
+    }
+    getCurrentUser()
+      .then((userData) => {
+        setCurrentUser({ authenticated: true, role: userData.role, data: userData });
+      })
+      .catch(() => {
+        setCurrentUser({ authenticated: true, role: data?.role, data });
+      })
+      .finally(() => setAuthLoading(false));
   };
 
   const handleLogout = () => {
@@ -95,13 +100,22 @@ export default function App() {
 
   const farmerViews = ['dashboard', 'cropsAndFarms', 'editProfile', 'addObservation', 'history', 'reports', 'cases'];
   const isLoggedIn = !!currentUser || !!localStorage.getItem('token');
-  const isFarmerLoggedIn = isLoggedIn || farmerViews.includes(currentView);
-  const isExpert = (currentUser?.role === 'expert' || currentUser?.data?.role === 'expert') && isLoggedIn;
+  const roleStr = (currentUser?.role || currentUser?.data?.role || '').toLowerCase();
+  const isExpert = isLoggedIn && (roleStr === 'expert' || Boolean(currentUser?.data?.expert_profile));
+  const isFarmerLoggedIn = isLoggedIn && !isExpert && (farmerViews.includes(currentView) || currentView === 'dashboard');
+
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800 font-sans antialiased">
-      {/* Show FarmerNavbar when logged in, otherwise public Navbar (Expert has its own nav) */}
-      {isExpert ? null : isFarmerLoggedIn ? (
+      {/* Show nothing until auth is resolved */}
+      {authLoading ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center space-y-3">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-emerald-800 border-r-transparent" />
+            <p className="text-sm font-medium text-stone-600">Loading...</p>
+          </div>
+        </div>
+      ) : isExpert ? null : isFarmerLoggedIn ? (
         <FarmerNavbar
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -116,8 +130,15 @@ export default function App() {
       )}
 
       {/* Dynamic View Content */}
-      {isExpert ? (
-        <ExpertDashboard onLogout={handleLogout} />
+      {authLoading ? null : isExpert ? (
+        currentView === 'editProfile' ? (
+          <EditProfilePage onBack={() => setCurrentView('dashboard')} />
+        ) : (
+          <ExpertDashboard
+            onLogout={handleLogout}
+            onEditProfile={handleEditProfile}
+          />
+        )
       ) : !isFarmerLoggedIn ? (
         <>
           {/* Public Hero Section */}

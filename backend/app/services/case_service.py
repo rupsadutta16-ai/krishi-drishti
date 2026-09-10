@@ -13,8 +13,13 @@ from app.schemas.case import CaseCreate, CaseListResponse, CaseResponse, CaseUpd
 
 
 def _require_farmer(current_user: User) -> User:
-    role_val = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
-    if role_val != "farmer" and current_user.role != UserRole.FARMER:
+    # Get role value as a string - handle both enum and string storage
+    if hasattr(current_user.role, "value"):
+        role_val = current_user.role.value  # Enum case
+    else:
+        role_val = str(current_user.role)  # String case from DB
+    
+    if role_val != "farmer":
         raise AppException(status_code=403, detail="Only farmers can perform this action")
     return current_user
 
@@ -148,12 +153,8 @@ def submit_case_to_expert(
 
     # Mark all OPEN/AI_ANALYZED observations in this case as PENDING_EXPERT
     for obs in case.observations:
-        obs_status = obs.status.value if hasattr(obs.status, "value") else str(obs.status)
-        if obs.status in (
-            ObservationStatus.AI_ANALYZED,
-            ObservationStatus.READY_FOR_AI,
-            ObservationStatus.SUBMITTED,
-        ) or obs_status.upper() in ("AI_ANALYZED", "READY_FOR_AI", "SUBMITTED"):
+        obs_status_str = obs.status.value if hasattr(obs.status, "value") else str(obs.status)
+        if obs_status_str in ("AI_ANALYZED", "READY_FOR_AI", "SUBMITTED"):
             obs.status = ObservationStatus.PENDING_EXPERT
             db.add(obs)
 

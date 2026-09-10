@@ -11,7 +11,13 @@ from app.core.exceptions import AppException
 
 def _require_farmer(current_user: User) -> None:
     """Raise 403 if the current user is not a farmer."""
-    if current_user.role != "farmer":
+    # Get role value as a string - handle both enum and string storage
+    if hasattr(current_user.role, "value"):
+        role_val = current_user.role.value  # Enum case
+    else:
+        role_val = str(current_user.role)  # String case from DB
+    
+    if role_val != "farmer":
         raise AppException(
             status_code=status.HTTP_403_FORBIDDEN,
             message="Only farmers can manage crops",

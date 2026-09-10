@@ -52,5 +52,9 @@ class Farm(Base):
     observations: Mapped[list["Observation"]] = relationship(
         back_populates="farm", cascade="all, delete-orphan"
     )
+    soil_record: Mapped["FarmSoilRecord | None"] = relationship(
+        back_populates="farm", uselist=False, cascade="all, delete-orphan"
+    )
+
 
 

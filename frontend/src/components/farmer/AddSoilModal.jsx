@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, TestTube, CheckCircle2, AlertTriangle, Info, Sparkles, Sprout, ShieldAlert } from 'lucide-react';
-import { saveSoilRecord, getSoilByFarmId } from '../../api/soil';
+import { saveFarmSoil, fetchFarmSoil, getSoilByFarmId } from '../../api/soil';
 
 export default function AddSoilModal({ isOpen, onClose, farms, selectedFarmId, onSoilSaved }) {
   const [farmId, setFarmId] = useState(selectedFarmId || (farms?.[0]?.id || ''));
@@ -36,10 +36,11 @@ export default function AddSoilModal({ isOpen, onClose, farms, selectedFarmId, o
 
   // Load existing soil record if available for chosen farm
   useEffect(() => {
+    let isCurrent = true;
     if (farmId) {
-      const existing = getSoilByFarmId(farmId);
-      if (existing) {
-        setSampleNo(existing.sample_no || '');
+      const applyRecord = (existing) => {
+        if (!existing) return;
+        if (existing.sample_no) setSampleNo(existing.sample_no);
         if (existing.test_date) setTestDate(existing.test_date);
         if (existing.ph != null) setPh(String(existing.ph));
         if (existing.ec != null) setEc(String(existing.ec));
@@ -53,13 +54,23 @@ export default function AddSoilModal({ isOpen, onClose, farms, selectedFarmId, o
         if (existing.copper != null) setCopper(String(existing.copper));
         if (existing.manganese != null) setManganese(String(existing.manganese));
         if (existing.boron != null) setBoron(String(existing.boron));
-      }
+      };
+
+      const cached = getSoilByFarmId(farmId);
+      if (cached) applyRecord(cached);
+
+      fetchFarmSoil(farmId).then((remote) => {
+        if (isCurrent && remote) {
+          applyRecord(remote);
+        }
+      });
     }
+    return () => { isCurrent = false; };
   }, [farmId]);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!farmId) {
       setToast({ type: 'error', message: 'Please select a farm plot.' });
@@ -85,8 +96,8 @@ export default function AddSoilModal({ isOpen, onClose, farms, selectedFarmId, o
         boron: parseFloat(boron) || 0.5,
       };
 
-      const saved = saveSoilRecord(farmId, soilData);
-      setToast({ type: 'success', message: 'Soil Health Card data saved successfully!' });
+      const saved = await saveFarmSoil(farmId, soilData);
+      setToast({ type: 'success', message: 'Soil Health Card saved in system successfully!' });
       
       setTimeout(() => {
         setSaving(false);
@@ -99,6 +110,7 @@ export default function AddSoilModal({ isOpen, onClose, farms, selectedFarmId, o
       setSaving(false);
     }
   };
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 overflow-y-auto">
