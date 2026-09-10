@@ -1,4 +1,4 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, UploadFile, File
 from app.schemas.user import (
     UserCreate,
     UserResponse,
@@ -30,6 +30,7 @@ from app.services.auth_service import (
     update_farmer_profile,
     update_expert_profile,
     update_official_profile,
+    upload_expert_verification_doc,
 )
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -134,3 +135,23 @@ def update_official_profile_route(
     db: Session = Depends(get_db)
 ):
     return update_official_profile(profile_data, current_user, db)
+
+
+@router.post(
+    "/profile/expert/verification-doc",
+    response_model=ExpertProfileResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Expert Portal"],
+)
+async def upload_verification_doc(
+    file: UploadFile = File(..., description="Verification document: PDF or image (max 10 MB)"),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Upload a verification document for an expert account.
+    Accepts PDF or image files. Replaces any previously uploaded document.
+    """
+    contents = await file.read()
+    result = upload_expert_verification_doc(contents, current_user, db)
+    return result

@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 
 from app.api.dependencies import get_current_user
@@ -85,3 +85,33 @@ def add_follow_up_observation(
     db: Session = Depends(get_db),
 ):
     return case_service.add_follow_up_observation(current_user, case_id, observation_id, db)
+
+
+@router.post("/cases/{case_id}/observations", response_model=CaseResponse, status_code=201)
+def add_follow_up_observation_with_upload(
+    case_id: int,
+    file: UploadFile = File(...),
+    latitude: float | None = Form(None),
+    longitude: float | None = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a new follow-up observation image directly to an existing case."""
+    return case_service.add_follow_up_with_upload(
+        current_user=current_user,
+        case_id=case_id,
+        file=file,
+        latitude=latitude,
+        longitude=longitude,
+        db=db,
+    )
+
+
+@router.get("/cases/{case_id}/history")
+def get_case_history(
+    case_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Retrieve the complete chronological timeline of a case."""
+    return case_service.get_case_timeline(current_user, case_id, db)

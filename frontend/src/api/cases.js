@@ -16,3 +16,19 @@ export const reportObservationToExpert = (observationId) =>
 
 export const linkFollowUp = (caseId, observationId) =>
   apiClient.post(`/farmer/cases/${caseId}/follow-up/${observationId}`);
+
+export const addFollowUpObservationWithUpload = (caseId, file, latitude = null, longitude = null) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  if (latitude !== null && latitude !== undefined) formData.append('latitude', latitude);
+  if (longitude !== null && longitude !== undefined) formData.append('longitude', longitude);
+
+  return apiClient.post(`/farmer/cases/${caseId}/observations`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+};
+
+export const getCaseHistory = (caseId) =>
+  apiClient.get(`/farmer/cases/${caseId}/history`);

@@ -37,11 +37,13 @@ import {
   getSoilData,
 } from '../../api/expert';
 import { getCurrentUser } from '../../api/auth';
+import FarmerProfileModal from '../common/FarmerProfileModal';
 
 export default function ExpertDashboard({ onLogout, onEditProfile }) {
   const [queue, setQueue] = useState([]);
   const [selectedCase, setSelectedCase] = useState(null);
   const [caseDetail, setCaseDetail] = useState(null);
+  const [selectedFarmerIdForModal, setSelectedFarmerIdForModal] = useState(null);
   const [loadingQueue, setLoadingQueue] = useState(true);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -289,50 +291,46 @@ export default function ExpertDashboard({ onLogout, onEditProfile }) {
 
         {/* ─── Profile Completeness Banner ─── */}
         {isProfileIncomplete && onEditProfile && (
-          <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 rounded-2xl p-5 shadow-lg border border-amber-400/50">
-            {/* Decorative background pattern */}
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 0%, transparent 60%), radial-gradient(circle at 80% 20%, white 0%, transparent 40%)' }} />
-            <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
-                  <BadgeAlert className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                  <p className="text-white font-extrabold text-sm tracking-tight">
-                    ⚠️ Important: Complete your profile to get verified
-                  </p>
-                  <p className="text-amber-100 text-xs mt-0.5 max-w-lg">
-                    Your expert profile is incomplete. Add your <strong>specialization</strong>, <strong>qualification</strong>, and <strong>organization</strong> to help farmers and admins verify your credentials and trust your validations.
-                  </p>
-                  {/* Show what's missing */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {!currentUser?.expert_profile?.specialization && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-white/20 text-white rounded-full border border-white/30">
-                        ✗ Specialization missing
-                      </span>
-                    )}
-                    {!currentUser?.expert_profile?.qualification && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-white/20 text-white rounded-full border border-white/30">
-                        ✗ Qualification missing
-                      </span>
-                    )}
-                    {!currentUser?.expert_profile?.organization && (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 bg-white/20 text-white rounded-full border border-white/30">
-                        ✗ Organization missing
-                      </span>
-                    )}
-                  </div>
+          <div className="bg-emerald-950 rounded-xl border border-emerald-800/80 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="flex-shrink-0 w-9 h-9 rounded-lg bg-emerald-900 flex items-center justify-center border border-emerald-700/60">
+                <User className="h-4 w-4 text-emerald-300" />
+              </div>
+              <div>
+                <p className="text-emerald-100 font-semibold text-xs tracking-tight">
+                  Complete your profile to get verified
+                </p>
+                <p className="text-emerald-400/80 text-[11px] mt-0.5 max-w-lg">
+                  Add your <span className="text-emerald-200">specialization</span>, <span className="text-emerald-200">qualification</span>, and <span className="text-emerald-200">organization</span> so credentials can be verified.
+                </p>
+                {/* Show what's missing */}
+                <div className="flex flex-wrap gap-1.5 mt-2">
+                  {!currentUser?.expert_profile?.specialization && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-900/80 text-emerald-300 rounded border border-emerald-700/50">
+                      • Specialization missing
+                    </span>
+                  )}
+                  {!currentUser?.expert_profile?.qualification && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-900/80 text-emerald-300 rounded border border-emerald-700/50">
+                      • Qualification missing
+                    </span>
+                  )}
+                  {!currentUser?.expert_profile?.organization && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 bg-emerald-900/80 text-emerald-300 rounded border border-emerald-700/50">
+                      • Organization missing
+                    </span>
+                  )}
                 </div>
               </div>
-              <div className="flex-shrink-0 sm:ml-auto">
-                <button
-                  onClick={onEditProfile}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-orange-700 font-extrabold text-xs rounded-xl shadow-md hover:bg-amber-50 active:scale-95 transition-all cursor-pointer border border-white/50"
-                >
-                  <Edit className="h-3.5 w-3.5" />
-                  Edit Profile Now
-                </button>
-              </div>
+            </div>
+            <div className="flex-shrink-0 sm:ml-auto">
+              <button
+                onClick={onEditProfile}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-800 hover:bg-emerald-700 text-emerald-100 font-semibold text-xs rounded-lg transition-colors cursor-pointer border border-emerald-700/60"
+              >
+                <Edit className="h-3.5 w-3.5" />
+                Edit Profile
+              </button>
             </div>
           </div>
         )}
@@ -395,12 +393,21 @@ export default function ExpertDashboard({ onLogout, onEditProfile }) {
 
               {/* Case identity cards with names */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100">
-                  <span className="text-emerald-700 font-medium block">👤 Farmer</span>
-                  <p className="font-extrabold text-emerald-900 mt-0.5">
-                    {caseDetail.farmer_name || `Farmer #${caseDetail.farmer_id}`}
-                  </p>
-                  <p className="text-[10px] text-emerald-600 mt-0.5">User #${caseDetail.farmer_id}</p>
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 flex flex-col justify-between">
+                  <div>
+                    <span className="text-emerald-700 font-medium block">👤 Farmer</span>
+                    <p className="font-extrabold text-emerald-900 mt-0.5">
+                      {caseDetail.farmer_name || `Farmer #${caseDetail.farmer_id}`}
+                    </p>
+                    <p className="text-[10px] text-emerald-600 mt-0.5">User #{caseDetail.farmer_id}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedFarmerIdForModal(caseDetail.farmer_id)}
+                    className="mt-2 text-[10px] font-bold text-emerald-800 hover:text-emerald-900 underline text-left"
+                  >
+                    View Farmer Profile →
+                  </button>
                 </div>
                 <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
                   <span className="text-blue-700 font-medium block">🏞 Farm</span>
@@ -1050,6 +1057,14 @@ export default function ExpertDashboard({ onLogout, onEditProfile }) {
           </div>
         )}
       </main>
+
+      {/* Farmer Public Profile Modal */}
+      {selectedFarmerIdForModal && (
+        <FarmerProfileModal
+          farmerId={selectedFarmerIdForModal}
+          onClose={() => setSelectedFarmerIdForModal(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 from datetime import datetime, UTC
 
-from sqlalchemy import String, DateTime, ForeignKey, Boolean
+from sqlalchemy import String, DateTime, ForeignKey, Boolean, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.database import Base
@@ -24,6 +24,18 @@ class ExpertProfile(Base):
     )
 
     organization: Mapped[str | None] = mapped_column(
+        String(255), nullable=True
+    )
+
+    # Contact & location details
+    phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Verification document (PDF or image uploaded to Cloudinary)
+    verification_doc_url: Mapped[str | None] = mapped_column(
+        String(1024), nullable=True
+    )
+    verification_doc_public_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True
     )
 

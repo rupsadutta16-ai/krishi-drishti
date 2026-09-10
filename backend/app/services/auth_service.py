@@ -302,6 +302,10 @@ def update_expert_profile(
         profile.qualification = profile_data.qualification
     if profile_data.organization is not None:
         profile.organization = profile_data.organization
+    if profile_data.phone is not None:
+        profile.phone = profile_data.phone
+    if profile_data.address is not None:
+        profile.address = profile_data.address
     if profile_data.is_verified is not None:
         profile.is_verified = profile_data.is_verified
 
@@ -334,6 +338,42 @@ def update_official_profile(
         profile.district = profile_data.district
     if profile_data.state is not None:
         profile.state = profile_data.state
+
+    db.commit()
+    db.refresh(profile)
+    return profile
+
+def upload_expert_verification_doc(
+    file,
+    current_user,
+    db,
+):
+    """Upload an expert verification document (image or PDF) to Cloudinary."""
+    from app.utils.media import upload_document, delete_asset
+    from app.core.exceptions import AppException
+    from app.models.expert_profile import ExpertProfile
+
+    if current_user.role != "expert":
+        raise AppException(
+            status_code=403,
+            message="Only experts can upload a verification document",
+        )
+
+    profile = current_user.expert_profile
+    if not profile:
+        profile = ExpertProfile(user_id=current_user.id)
+        db.add(profile)
+        db.flush()
+
+    if profile.verification_doc_public_id:
+        try:
+            delete_asset(profile.verification_doc_public_id, resource_type="raw")
+        except Exception:
+            pass
+
+    result = upload_document(file, folder="krishi_drishti/verification_docs")
+    profile.verification_doc_url = result["secure_url"]
+    profile.verification_doc_public_id = result["public_id"]
 
     db.commit()
     db.refresh(profile)

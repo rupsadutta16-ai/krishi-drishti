@@ -19,26 +19,36 @@ SessionLocal = sessionmaker(
 )
 
 
+def _add_column_if_missing(connection, table: str, column: str, col_def: str) -> None:
+    """Helper: ALTER TABLE only if the column does not yet exist."""
+    inspector = inspect(connection)
+    existing = {c["name"] for c in inspector.get_columns(table)}
+    if column not in existing:
+        connection.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {col_def}"))
+
+
 def ensure_schema() -> None:
-    """Create missing tables and add columns that create_all will not migrate."""
+    """Create missing tables and patch columns that SQLAlchemy create_all won't migrate."""
     Base.metadata.create_all(bind=engine)
 
-    inspector = inspect(engine)
-    if not inspector.has_table("farms"):
-        return
+    with engine.begin() as conn:
+        inspector = inspect(conn)
 
-    farm_columns = {col["name"] for col in inspector.get_columns("farms")}
-    if "has_sensor" in farm_columns:
-        return
-
-    dialect = engine.dialect.name
-    default_sql = "0" if dialect == "sqlite" else "FALSE"
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                f"ALTER TABLE farms ADD COLUMN has_sensor BOOLEAN NOT NULL DEFAULT {default_sql}"
+        # ── farms.has_sensor ─────────────────────────────────────────
+        if inspector.has_table("farms"):
+            dialect = engine.dialect.name
+            default_sql = "0" if dialect == "sqlite" else "FALSE"
+            _add_column_if_missing(
+                conn, "farms", "has_sensor",
+                f"BOOLEAN NOT NULL DEFAULT {default_sql}"
             )
-        )
+
+        # ── expert_profiles new columns ───────────────────────────────
+        if inspector.has_table("expert_profiles"):
+            _add_column_if_missing(conn, "expert_profiles", "phone", "VARCHAR(20)")
+            _add_column_if_missing(conn, "expert_profiles", "address", "VARCHAR(255)")
+            _add_column_if_missing(conn, "expert_profiles", "verification_doc_url", "VARCHAR(1024)")
+            _add_column_if_missing(conn, "expert_profiles", "verification_doc_public_id", "VARCHAR(255)")
 
 
 def get_db():

@@ -20,9 +20,23 @@ import {
   RefreshCw,
   Star,
   AlertTriangle,
+  Plus,
+  Upload,
+  Clock,
+  Sparkles,
+  TrendingUp,
+  ArrowRight,
+  History as HistoryIcon,
 } from 'lucide-react';
 import { getProfile } from '../../api/profile';
-import { reportObservationToExpert, getCaseDetail } from '../../api/cases';
+import {
+  reportObservationToExpert,
+  getCaseDetail,
+  addFollowUpObservationWithUpload,
+  getCaseHistory,
+} from '../../api/cases';
+import { getExpertDirectory } from '../../api/expert';
+import ExpertProfileModal from '../common/ExpertProfileModal';
 import jsPDF from 'jspdf';
 
 
@@ -106,6 +120,9 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
   const [farmerProfile, setFarmerProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [expertModalOpen, setExpertModalOpen] = useState(false);
+  const [realExperts, setRealExperts] = useState([]);
+  const [loadingExperts, setLoadingExperts] = useState(false);
+  const [selectedExpertForModal, setSelectedExpertForModal] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
   const [toastType, setToastType] = useState('success');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -139,6 +156,19 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
     })();
   }, []);
 
+  const handleOpenExpertModal = async () => {
+    setExpertModalOpen(true);
+    setLoadingExperts(true);
+    try {
+      const list = await getExpertDirectory();
+      setRealExperts(list || []);
+    } catch (err) {
+      console.error('Error fetching expert directory:', err);
+    } finally {
+      setLoadingExperts(false);
+    }
+  };
+
   const showToast = (msg, type = 'success') => {
     setToastMsg(msg);
     setToastType(type);
@@ -148,6 +178,31 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
   const [submittingToExpert, setSubmittingToExpert] = useState(false);
   const [submittedCase, setSubmittedCase] = useState(null);
 
+  // Follow-Up & Timeline state
+  const [followUpModalOpen, setFollowUpModalOpen] = useState(false);
+  const [followUpFile, setFollowUpFile] = useState(null);
+  const [uploadingFollowUp, setUploadingFollowUp] = useState(false);
+  const [followUpError, setFollowUpError] = useState('');
+  const [caseHistoryData, setCaseHistoryData] = useState(null);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const followUpInputRef = useRef(null);
+
+  const activeCaseId = obs?.case_id || submittedCase?.id;
+
+  const fetchHistory = async (cId) => {
+    const targetCaseId = cId || activeCaseId;
+    if (!targetCaseId) return;
+    setLoadingHistory(true);
+    try {
+      const res = await getCaseHistory(targetCaseId);
+      setCaseHistoryData(res.data);
+    } catch (err) {
+      console.error('Error fetching case history:', err);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   useEffect(() => {
     if (obs?.case_id) {
       getCaseDetail(obs.case_id)
@@ -155,6 +210,52 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
         .catch(() => {});
     }
   }, [obs?.case_id]);
+
+  useEffect(() => {
+    if (activeCaseId) {
+      fetchHistory(activeCaseId);
+    }
+  }, [activeCaseId]);
+
+  const handleFollowUpSubmit = async (e) => {
+    e.preventDefault();
+    if (!followUpFile) {
+      setFollowUpError('Please select or capture a follow-up image.');
+      return;
+    }
+    setFollowUpError('');
+    setUploadingFollowUp(true);
+
+    try {
+      let targetCaseId = activeCaseId;
+
+      // If case doesn't exist yet, auto-create case for this observation
+      if (!targetCaseId && report?.observation_id) {
+        const caseRes = await reportObservationToExpert(report.observation_id);
+        targetCaseId = caseRes.data?.id;
+        setSubmittedCase(caseRes.data);
+      }
+
+      if (!targetCaseId) {
+        throw new Error('Could not establish an Agricultural Case for this follow-up.');
+      }
+
+      await addFollowUpObservationWithUpload(targetCaseId, followUpFile);
+      showToast('Follow-up observation uploaded and analyzed successfully!', 'success');
+      setFollowUpModalOpen(false);
+      setFollowUpFile(null);
+      if (followUpInputRef.current) followUpInputRef.current.value = '';
+
+      // Refresh case history timeline
+      fetchHistory(targetCaseId);
+    } catch (err) {
+      console.error('Follow-up submission error:', err);
+      const msg = err?.response?.data?.detail || err?.response?.data?.message || 'Failed to submit follow-up observation.';
+      setFollowUpError(msg);
+    } finally {
+      setUploadingFollowUp(false);
+    }
+  };
 
   const handleReportToExpert = async () => {
     if (!report?.observation_id) {
@@ -606,8 +707,8 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
                   <Phone className="h-5 w-5 text-emerald-300" />
                 </div>
                 <div>
-                  <h2 className="text-base font-extrabold text-white">Krishi Expert Contacts</h2>
-                  <p className="text-xs text-stone-400 mt-0.5">Verified agronomists & extension officers</p>
+                  <h2 className="text-base font-extrabold text-white">Krishi Expert Directory</h2>
+                  <p className="text-xs text-stone-400 mt-0.5">Real agronomists registered on Krishi Drishti platform</p>
                 </div>
               </div>
               <button
@@ -619,45 +720,69 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
             </div>
 
             <div className="p-5 space-y-4">
-              {EXPERT_CONTACTS.map((expert) => (
-                <div key={expert.id} className="border border-stone-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 rounded-full bg-emerald-100 border-2 border-emerald-300 flex items-center justify-center flex-shrink-0">
-                        <User className="h-6 w-6 text-emerald-700" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-extrabold text-stone-900">{expert.name}</h3>
-                        <p className="text-xs text-emerald-800 font-bold">{expert.designation}</p>
-                        <p className="text-[11px] text-stone-500 mt-0.5">{expert.specialization}</p>
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1.5">
-                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase border ${expert.available ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-stone-100 text-stone-500 border-stone-300'}`}>
-                        {expert.available ? '● Available' : '○ Busy'}
-                      </span>
-                      <div className="flex items-center space-x-1">
-                        <Star className="h-3 w-3 text-amber-500 fill-amber-500" />
-                        <span className="text-[11px] font-bold text-stone-700">{expert.rating}</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="bg-stone-50 rounded-xl p-3 space-y-2">
-                    <div className="flex items-center space-x-2 text-xs text-stone-700">
-                      <Phone className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0" />
-                      <a href={`tel:${expert.phone}`} className="font-bold hover:text-emerald-700 transition-colors">{expert.phone}</a>
-                    </div>
-                    <div className="flex items-center space-x-2 text-xs text-stone-700">
-                      <Mail className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0" />
-                      <a href={`mailto:${expert.email}`} className="font-medium hover:text-emerald-700 transition-colors truncate">{expert.email}</a>
-                    </div>
-                    <div className="flex items-start space-x-2 text-xs text-stone-700">
-                      <MapPin className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0 mt-0.5" />
-                      <span className="font-medium">{expert.address}</span>
-                    </div>
-                  </div>
+              {loadingExperts ? (
+                <div className="py-12 flex flex-col items-center justify-center space-y-2 text-stone-500 text-xs font-semibold">
+                  <RefreshCw className="h-5 w-5 animate-spin text-emerald-700" />
+                  <span>Loading registered agricultural experts...</span>
                 </div>
-              ))}
+              ) : realExperts.length === 0 ? (
+                <div className="py-10 text-center space-y-2 text-stone-500">
+                  <User className="h-8 w-8 mx-auto text-stone-400" />
+                  <p className="text-sm font-bold text-stone-700">No experts found in directory</p>
+                  <p className="text-xs text-stone-400">Registered expert profiles will appear here.</p>
+                </div>
+              ) : (
+                realExperts.map((expert) => (
+                  <div key={expert.id} className="border border-stone-200 rounded-2xl p-4 space-y-3 hover:shadow-md transition-shadow bg-white">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-100 border border-emerald-300 flex items-center justify-center flex-shrink-0">
+                          <User className="h-6 w-6 text-emerald-800" />
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <h3 className="text-sm font-extrabold text-stone-900">{expert.name}</h3>
+                            {expert.is_verified && (
+                              <span className="px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">Verified</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-emerald-800 font-bold">{expert.specialization || 'General Agronomist'}</p>
+                          <p className="text-[11px] text-stone-500 mt-0.5">{expert.qualification || 'Agricultural Specialist'} • {expert.organization || 'Independent'}</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedExpertForModal(expert)}
+                        className="px-3 py-1.5 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                      >
+                        View Profile
+                      </button>
+                    </div>
+
+                    <div className="bg-stone-50 rounded-xl p-3 space-y-1.5">
+                      {expert.phone && (
+                        <div className="flex items-center space-x-2 text-xs text-stone-700">
+                          <Phone className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0" />
+                          <a href={`tel:${expert.phone}`} className="font-bold hover:text-emerald-700 transition-colors">{expert.phone}</a>
+                        </div>
+                      )}
+                      {expert.email && (
+                        <div className="flex items-center space-x-2 text-xs text-stone-700">
+                          <Mail className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0" />
+                          <a href={`mailto:${expert.email}`} className="font-medium hover:text-emerald-700 transition-colors truncate">{expert.email}</a>
+                        </div>
+                      )}
+                      {expert.address && (
+                        <div className="flex items-start space-x-2 text-xs text-stone-700">
+                          <MapPin className="h-3.5 w-3.5 text-emerald-700 flex-shrink-0 mt-0.5" />
+                          <span className="font-medium">{expert.address}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             <div className="px-5 pb-5">
@@ -665,11 +790,19 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
                 onClick={() => setExpertModalOpen(false)}
                 className="w-full py-3 bg-emerald-950 text-white font-bold text-xs rounded-xl hover:bg-emerald-800 transition-colors cursor-pointer"
               >
-                Close
+                Close Directory
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {/* Selected Expert Detailed Profile Modal */}
+      {selectedExpertForModal && (
+        <ExpertProfileModal
+          expert={selectedExpertForModal}
+          onClose={() => setSelectedExpertForModal(null)}
+        />
       )}
 
       {/* Main */}
@@ -684,14 +817,23 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
             <ArrowLeft className="h-4 w-4" />
             <span>Back to Reports</span>
           </button>
-          <button
-            onClick={handleDownloadPdf}
-            disabled={downloadingPdf}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-stone-800 hover:bg-stone-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer border border-stone-700"
-          >
-            {downloadingPdf ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 text-stone-300" />}
-            <span>{downloadingPdf ? 'Generating PDF…' : 'Download Report PDF'}</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setFollowUpModalOpen(true)}
+              className="flex items-center space-x-1.5 px-4 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer border border-emerald-600"
+            >
+              <Plus className="h-4 w-4 text-emerald-200" />
+              <span>+ Add Follow-Up</span>
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="flex items-center space-x-2 px-4 py-2.5 bg-stone-800 hover:bg-stone-900 disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-sm transition-colors cursor-pointer border border-stone-700"
+            >
+              {downloadingPdf ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4 text-stone-300" />}
+              <span>{downloadingPdf ? 'Generating PDF…' : 'Download Report PDF'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Printable area */}
@@ -905,6 +1047,196 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
             </div>
           </div>
 
+          {/* Comparative Analysis Card (Previous vs Current Follow-up) */}
+          {(() => {
+            const obsList = caseHistoryData?.timeline?.filter((t) => t.type === 'observation') || [];
+            if (obsList.length < 2) return null;
+            const firstObs = obsList[0];
+            const latestObs = obsList[obsList.length - 1];
+
+            const firstAi = firstObs.ai_analysis;
+            const latestAi = latestObs.ai_analysis;
+
+            return (
+              <div className="bg-gradient-to-r from-emerald-950 to-stone-900 rounded-2xl p-5 text-white shadow-md space-y-3 border border-emerald-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <TrendingUp className="h-5 w-5 text-emerald-400" />
+                    <h3 className="text-sm font-extrabold tracking-tight">
+                      Case Progression — Initial vs Latest Follow-Up
+                    </h3>
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 bg-emerald-800 text-emerald-200 rounded-md border border-emerald-700">
+                    {obsList.length} Observations Recorded
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                  {/* Initial */}
+                  <div className="p-3.5 bg-white/10 rounded-xl border border-white/10 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-stone-300 uppercase">Initial Observation (Obs #{firstObs.id})</span>
+                      <span className="text-[10px] text-stone-400">{fmt(firstObs.created_at)}</span>
+                    </div>
+                    <p className="text-xs font-black text-white">
+                      {firstAi?.predicted_disease || 'Healthy Crop'}
+                    </p>
+                    <div className="flex items-center space-x-3 text-[11px] text-emerald-300 font-semibold">
+                      <span>Risk: {firstAi?.risk_level || 'LOW'}</span>
+                      <span>•</span>
+                      <span>Confidence: {firstAi?.confidence_score ? (firstAi.confidence_score * 100).toFixed(1) + '%' : 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  {/* Latest Follow-Up */}
+                  <div className="p-3.5 bg-emerald-900/60 rounded-xl border border-emerald-500/40 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-emerald-300 uppercase flex items-center space-x-1">
+                        <Sparkles className="h-3 w-3 text-emerald-400" />
+                        <span>Latest Follow-Up (Obs #{latestObs.id})</span>
+                      </span>
+                      <span className="text-[10px] text-emerald-200">{fmt(latestObs.created_at)}</span>
+                    </div>
+                    <p className="text-xs font-black text-white">
+                      {latestAi?.predicted_disease || 'Healthy Crop'}
+                    </p>
+                    <div className="flex items-center space-x-3 text-[11px] text-emerald-300 font-semibold">
+                      <span>Risk: {latestAi?.risk_level || 'LOW'}</span>
+                      <span>•</span>
+                      <span>Confidence: {latestAi?.confidence_score ? (latestAi.confidence_score * 100).toFixed(1) + '%' : 'N/A'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Chronological Case History & Evolution Timeline */}
+          {caseHistoryData?.timeline?.length > 0 && (
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-xs overflow-hidden">
+              <div className="px-5 py-4 border-b border-stone-100 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <HistoryIcon className="h-4 w-4 text-emerald-700" />
+                  <h2 className="text-sm font-extrabold text-stone-900">
+                    Chronological Case Evolution & History Timeline
+                  </h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFollowUpModalOpen(true)}
+                  className="flex items-center space-x-1 text-xs font-extrabold text-emerald-800 hover:text-emerald-900 cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Follow-Up</span>
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {caseHistoryData.timeline.map((item, idx) => {
+                  if (item.type === 'observation') {
+                    const isLatest = idx === caseHistoryData.timeline.length - 1;
+                    const ai = item.ai_analysis;
+                    return (
+                      <div
+                        key={`obs-${item.id}`}
+                        className={`p-4 rounded-xl border transition-all ${
+                          isLatest
+                            ? 'bg-emerald-50/60 border-emerald-300 shadow-xs'
+                            : 'bg-stone-50 border-stone-200'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                          <div className="flex items-start space-x-3">
+                            {item.image_url ? (
+                              <img
+                                src={item.image_url}
+                                alt={`Observation #${item.id}`}
+                                className="w-16 h-16 object-cover rounded-xl border border-stone-300 flex-shrink-0"
+                                crossOrigin="anonymous"
+                              />
+                            ) : (
+                              <div className="w-16 h-16 rounded-xl bg-stone-200 flex items-center justify-center text-stone-400">
+                                <Camera className="h-6 w-6" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="flex items-center space-x-2 flex-wrap">
+                                <span className="text-xs font-black text-stone-900">
+                                  Observation #{item.id} {idx === 0 ? '(Initial)' : `(Follow-Up #${idx})`}
+                                </span>
+                                {isLatest && (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-emerald-800 text-emerald-100 uppercase">
+                                    Latest Follow-Up
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-stone-500 mt-0.5">
+                                Observed: {fmt(item.observed_at || item.created_at)}
+                              </p>
+                              {ai && (
+                                <div className="mt-2 space-y-0.5">
+                                  <p className="text-xs font-extrabold text-emerald-950">
+                                    AI Diagnosis: {ai.predicted_disease || 'Healthy Crop'}
+                                  </p>
+                                  {ai.predicted_pest && (
+                                    <p className="text-[11px] font-bold text-amber-800">
+                                      Pest: {ai.predicted_pest}
+                                    </p>
+                                  )}
+                                  <p className="text-[11px] text-stone-600 font-medium">
+                                    Risk: <strong className="text-stone-900">{ai.risk_level || 'LOW'}</strong> • Confidence:{' '}
+                                    <strong className="text-emerald-800">
+                                      {ai.confidence_score ? (ai.confidence_score * 100).toFixed(1) + '%' : '95%'}
+                                    </strong>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex sm:flex-col items-end justify-between sm:justify-start gap-1">
+                            <span className="text-[10px] font-mono font-bold text-stone-400">
+                              Quality Score: {item.image_quality_score ? item.image_quality_score.toFixed(0) + '/100' : 'Pass'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  } else if (item.type === 'expert_validation') {
+                    return (
+                      <div
+                        key={`val-${item.id}`}
+                        className="p-4 rounded-xl border border-emerald-200 bg-emerald-100/40 space-y-2"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black text-emerald-950 flex items-center space-x-1.5">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-700" />
+                            <span>Expert Validation & Official Advice</span>
+                          </span>
+                          <span className="text-[10px] text-stone-500 font-medium">
+                            {fmt(item.created_at)}
+                          </span>
+                        </div>
+                        <p className="text-xs font-bold text-stone-800">
+                          Verdict: <span className="uppercase text-emerald-900">{item.validation_result?.replace('_', ' ')}</span>
+                        </p>
+                        {item.treatment_recommendation && (
+                          <div className="p-3 bg-white rounded-lg border border-emerald-200 text-xs text-emerald-950 font-medium leading-relaxed">
+                            <strong>Recommendation:</strong> {item.treatment_recommendation}
+                          </div>
+                        )}
+                        {item.comments && (
+                          <p className="text-xs text-stone-600 italic">"{item.comments}"</p>
+                        )}
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
+              </div>
+            </div>
+          )}
+
         </div>
         {/* End printable */}
 
@@ -933,11 +1265,11 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
             </span>
           </button>
           <button
-            onClick={() => setExpertModalOpen(true)}
+            onClick={handleOpenExpertModal}
             className="flex-1 flex items-center justify-center space-x-2 px-5 py-3.5 bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-sm rounded-xl shadow-sm transition-colors cursor-pointer border border-emerald-700"
           >
             <Phone className="h-4 w-4 text-emerald-200" />
-            <span>View Expert Contact Details</span>
+            <span>View Expert Directory</span>
           </button>
         </div>
 
@@ -985,6 +1317,85 @@ export default function ReportDetailPage({ report, crops, farms, onBack }) {
         )}
 
       </div>
+
+      {/* Follow-Up Image Upload Modal */}
+      {followUpModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-stone-200">
+            <div className="bg-emerald-950 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-800 flex items-center justify-center border border-emerald-700">
+                  <Plus className="h-5 w-5 text-emerald-300" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold">Add Follow-Up Observation</h3>
+                  <p className="text-xs text-stone-300">Upload a new photo for Case #{activeCaseId || report?.id}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFollowUpModalOpen(false)}
+                className="p-1.5 bg-emerald-800 hover:bg-emerald-700 text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFollowUpSubmit} className="p-6 space-y-4">
+              {followUpError && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 flex items-center space-x-2">
+                  <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                  <span>{followUpError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                  Select / Capture Follow-Up Image
+                </label>
+                <input
+                  type="file"
+                  ref={followUpInputRef}
+                  accept="image/*"
+                  required
+                  onChange={(e) => setFollowUpFile(e.target.files[0] || null)}
+                  className="block w-full text-xs text-stone-600 file:mr-3 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                />
+                <p className="text-[11px] text-stone-400 mt-1.5">
+                  Clear photo of crop leaf or plot. Image quality is evaluated before AI analysis.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end space-x-2">
+                <button
+                  type="button"
+                  onClick={() => setFollowUpModalOpen(false)}
+                  className="px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={uploadingFollowUp || !followUpFile}
+                  className="flex items-center space-x-2 px-5 py-2 bg-emerald-800 hover:bg-emerald-900 text-white text-xs font-bold rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {uploadingFollowUp ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <span>Analyzing Follow-Up...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-4 w-4" />
+                      <span>Upload & Analyze</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

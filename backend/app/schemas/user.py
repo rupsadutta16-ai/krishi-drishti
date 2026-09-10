@@ -42,9 +42,42 @@ class ExpertProfileResponse(BaseModel):
     specialization: str | None
     qualification: str | None
     organization: str | None
+    phone: str | None = None
+    address: str | None = None
+    verification_doc_url: str | None = None
     is_verified: bool
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ExpertPublicProfileResponse(BaseModel):
+    """Safe public view of an expert — no email or sensitive data."""
+    id: int          # user id
+    name: str
+    username: str
+    specialization: str | None
+    qualification: str | None
+    organization: str | None
+    phone: str | None
+    address: str | None
+    is_verified: bool
+
+    model_config = {"from_attributes": True}
+
+
+class FarmerPublicProfileResponse(BaseModel):
+    """Safe public view of a farmer — visible to experts reviewing their cases."""
+    id: int          # user id
+    name: str
+    username: str
+    email: str | None = None
+    phone: str | None = None
+    village: str | None = None
+    district: str | None = None
+    state: str | None = None
+    preferred_language: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -179,6 +212,8 @@ class ExpertProfileCreate(BaseModel):
     specialization: ExpertSpecialization | None = None
     qualification: str | None = Field(default=None, max_length=255)
     organization: str | None = Field(default=None, max_length=255)
+    phone: str | None = Field(default=None, max_length=20)
+    address: str | None = Field(default=None, max_length=255)
     is_verified: bool | None = None
 
 

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  ArrowLeft, User, Lock, CheckCircle2, AlertCircle, RefreshCw, Eye, EyeOff, MapPin, Globe, Shield, Briefcase, Building
+  ArrowLeft, User, Lock, CheckCircle2, AlertCircle, RefreshCw, Eye, EyeOff, MapPin, Globe, Shield, Briefcase, Building, FileCheck, Upload, Phone, Home
 } from 'lucide-react';
 import { getCurrentUser } from '../../api/auth';
 import { getFieldOptions } from '../../api/options';
@@ -9,6 +9,7 @@ import {
   updateExpertProfile,
   updateOfficialProfile,
   updateUserBasicInfo,
+  uploadVerificationDoc,
 } from '../../api/profile';
 import apiClient from '../../api/client';
 
@@ -31,6 +32,15 @@ export default function EditProfilePage({ onBack }) {
   const [specialization, setSpecialization] = useState('');
   const [qualification, setQualification] = useState('');
   const [organization, setOrganization] = useState('');
+  const [expertPhone, setExpertPhone] = useState('');
+  const [expertAddress, setExpertAddress] = useState('');
+  // Verification document
+  const [verificationDocUrl, setVerificationDocUrl] = useState(null);
+  const [docFile, setDocFile] = useState(null);
+  const [docUploading, setDocUploading] = useState(false);
+  const [docUploadSuccess, setDocUploadSuccess] = useState('');
+  const [docUploadError, setDocUploadError] = useState('');
+  const docInputRef = useRef(null);
 
   // Official profile fields (auth/profile/official)
   const [department, setDepartment] = useState('');
@@ -71,6 +81,9 @@ export default function EditProfilePage({ onBack }) {
       if (ep.specialization) setSpecialization(ep.specialization);
       if (ep.qualification) setQualification(ep.qualification);
       if (ep.organization) setOrganization(ep.organization);
+      if (ep.phone) setExpertPhone(ep.phone);
+      if (ep.address) setExpertAddress(ep.address);
+      setVerificationDocUrl(ep.verification_doc_url || null);
     }
 
     // 3. Official profile
@@ -148,6 +161,8 @@ export default function EditProfilePage({ onBack }) {
           specialization: specialization || null,
           qualification: qualification.trim() || null,
           organization: organization.trim() || null,
+          phone: expertPhone.trim() || null,
+          address: expertAddress.trim() || null,
         };
         await updateExpertProfile(expertPayload);
       } else if (role === 'official') {
@@ -182,6 +197,25 @@ export default function EditProfilePage({ onBack }) {
     }
   };
 
+  const handleDocUpload = async () => {
+    if (!docFile) return;
+    setDocUploadError('');
+    setDocUploadSuccess('');
+    setDocUploading(true);
+    try {
+      const result = await uploadVerificationDoc(docFile);
+      setVerificationDocUrl(result.url);
+      setDocUploadSuccess('Verification document uploaded successfully!');
+      setDocFile(null);
+      if (docInputRef.current) docInputRef.current.value = '';
+    } catch (err) {
+      console.error('Document upload error:', err);
+      const msg = err.response?.data?.detail || 'Failed to upload verification document.';
+      setDocUploadError(typeof msg === 'string' ? msg : 'Upload failed.');
+    } finally {
+      setDocUploading(false);
+    }
+  };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
@@ -464,6 +498,99 @@ export default function EditProfilePage({ onBack }) {
                       placeholder="e.g. ICAR - Indian Agricultural Research Institute"
                       className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:bg-white transition-colors"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5 flex items-center space-x-1">
+                      <Phone className="h-3.5 w-3.5 text-emerald-700" />
+                      <span>Phone Number</span>
+                    </label>
+                    <input
+                      type="tel"
+                      value={expertPhone}
+                      onChange={(e) => setExpertPhone(e.target.value)}
+                      placeholder="e.g. +91 98765 43210"
+                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:bg-white transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 mb-1.5 flex items-center space-x-1">
+                      <Home className="h-3.5 w-3.5 text-emerald-700" />
+                      <span>Address / Office Location</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={expertAddress}
+                      onChange={(e) => setExpertAddress(e.target.value)}
+                      placeholder="e.g. Krishi Bhavan, Shivajinagar, Pune"
+                      className="w-full px-3.5 py-2.5 bg-stone-50 border border-stone-300 rounded-xl text-sm text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:bg-white transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Verification Document Upload */}
+                <div className="mt-5 pt-4 border-t border-stone-100">
+                  <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2 flex items-center space-x-1.5">
+                    <FileCheck className="h-4 w-4 text-emerald-700" />
+                    <span>Verification Document (Degree / Certification / ID)</span>
+                  </label>
+                  <p className="text-xs text-stone-500 mb-3">
+                    Upload image (JPG, PNG, WEBP) or PDF for identity and qualification verification by government officials.
+                  </p>
+
+                  {verificationDocUrl && (
+                    <div className="mb-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between">
+                      <div className="flex items-center space-x-2 text-xs text-emerald-900 font-medium">
+                        <FileCheck className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                        <span>Current Verification Document Uploaded</span>
+                      </div>
+                      <a
+                        href={verificationDocUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline flex items-center space-x-1"
+                      >
+                        <span>View Document</span>
+                      </a>
+                    </div>
+                  )}
+
+                  {docUploadError && (
+                    <div className="mb-3 flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700">
+                      <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                      <span>{docUploadError}</span>
+                    </div>
+                  )}
+
+                  {docUploadSuccess && (
+                    <div className="mb-3 flex items-center space-x-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-700">
+                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                      <span>{docUploadSuccess}</span>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="file"
+                      ref={docInputRef}
+                      accept="image/*,application/pdf"
+                      onChange={(e) => setDocFile(e.target.files[0] || null)}
+                      className="block w-full text-xs text-stone-600 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-emerald-100 file:text-emerald-800 hover:file:bg-emerald-200 cursor-pointer"
+                    />
+                    <button
+                      type="button"
+                      disabled={!docFile || docUploading}
+                      onClick={handleDocUpload}
+                      className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                    >
+                      {docUploading ? (
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5" />
+                      )}
+                      <span>{docUploading ? 'Uploading...' : 'Upload Doc'}</span>
+                    </button>
                   </div>
                 </div>
               </div>

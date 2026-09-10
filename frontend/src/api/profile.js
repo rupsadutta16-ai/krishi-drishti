@@ -28,3 +28,16 @@ export const updateUserBasicInfo = async (userData) => {
 export const updateProfile = async (profileData) => {
   return await updateFarmerProfile(profileData);
 };
+
+/**
+ * Upload an expert's verification document (PDF or image).
+ * @param {File} file - The document file to upload
+ */
+export const uploadVerificationDoc = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post('/auth/profile/expert/verification-doc', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};

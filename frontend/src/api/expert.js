@@ -26,14 +26,6 @@ export const getExpertCaseDetail = async (caseId) => {
 
 /**
  * Submit expert validation for a case
- * @param {number} caseId - Case ID
- * @param {Object} data - Validation data {
- *   validation_result: 'confirmed' | 'corrected' | 'needs_investigation',
- *   corrected_disease?: string,
- *   corrected_pest?: string,
- *   comments?: string,
- *   treatment_recommendation?: string
- * }
  */
 export const validateCase = async (caseId, data) => {
   try {
@@ -78,4 +70,32 @@ export const getSoilData = async (farmId) => {
   } catch (error) {
     throw error;
   }
+};
+
+// ── Public Expert Directory ────────────────────────────────────────────────
+
+/**
+ * Get all expert public profiles (any authenticated user)
+ */
+export const getExpertDirectory = async () => {
+  const response = await apiClient.get('/expert/directory');
+  return response.data;
+};
+
+/**
+ * Get a single expert's public profile by user ID
+ */
+export const getExpertPublicProfile = async (expertId) => {
+  const response = await apiClient.get(`/expert/directory/${expertId}`);
+  return response.data;
+};
+
+// ── Farmer Public Profile (for expert view) ────────────────────────────────
+
+/**
+ * Get a farmer's public profile — called by experts when reviewing a case
+ */
+export const getFarmerPublicProfile = async (farmerId) => {
+  const response = await apiClient.get(`/expert/farmers/${farmerId}`);
+  return response.data;
 };
