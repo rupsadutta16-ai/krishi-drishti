@@ -9,6 +9,7 @@ from app.api.routes import auth
 from app.api.routes import options
 from app.api.routes import case
 from app.api.routes import expert
+from app.api.routes import official
 from app.core.config import settings
 from app.core.exceptions import AppException
 from app.core.exception_handlers import app_exception_handler
@@ -70,6 +71,10 @@ app.include_router(
 )
 app.include_router(
     expert.router,
+    prefix="/api/v1"
+)
+app.include_router(
+    official.router,
     prefix="/api/v1"
 )
 

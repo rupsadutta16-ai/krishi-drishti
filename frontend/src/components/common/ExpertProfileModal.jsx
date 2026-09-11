@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, User, Shield, Briefcase, Building, Phone, Mail, MapPin, MessageSquare, CheckCircle2, Star } from 'lucide-react';
+import { X, User, Shield, Briefcase, Building, Phone, Mail, MapPin, MessageSquare, CheckCircle2, FileText, ExternalLink, ShieldCheck } from 'lucide-react';
 
-export default function ExpertProfileModal({ expert, onClose }) {
+export default function ExpertProfileModal({ expert, onClose, isOfficial = false, onVerify = null, verifying = false }) {
   const [requested, setRequested] = useState(false);
 
   if (!expert) return null;
@@ -31,10 +31,14 @@ export default function ExpertProfileModal({ expert, onClose }) {
                 <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-800 text-emerald-200 border border-emerald-700">
                   Agronomist Expert
                 </span>
-                {expert.is_verified && (
+                {expert.is_verified ? (
                   <span className="flex items-center space-x-1 px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                     <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                     <span>Verified</span>
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                    Unverified
                   </span>
                 )}
               </div>
@@ -107,29 +111,87 @@ export default function ExpertProfileModal({ expert, onClose }) {
             </div>
           </div>
 
-          {/* Consultation Request Action */}
-          <div className="pt-2">
-            {requested ? (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 font-bold">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Consultation Request Registered</span>
+          {/* Official Document & Verification Section */}
+          {isOfficial && (
+            <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 space-y-3">
+              <h3 className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-700" />
+                <span>Verification Document</span>
+              </h3>
+
+              {expert.verification_doc_url ? (
+                <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-emerald-200 shadow-sm">
+                  <div className="flex items-center space-x-2 min-w-0">
+                    <FileText className="h-5 w-5 text-emerald-700 shrink-0" />
+                    <span className="text-xs font-semibold text-stone-800 truncate">Verification Document</span>
+                  </div>
+                  <a
+                    href={expert.verification_doc_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition-colors shadow-sm shrink-0"
+                  >
+                    <span>View Document</span>
+                    <ExternalLink className="h-3.5 w-3.5" />
+                  </a>
                 </div>
-                <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Sent</span>
+              ) : (
+                <p className="text-xs text-stone-500 italic bg-white p-3 rounded-lg border border-stone-200">
+                  No verification document uploaded by this expert yet.
+                </p>
+              )}
+
+              {/* Official Action */}
+              <div className="pt-1">
+                {expert.is_verified ? (
+                  <div className="p-2.5 bg-emerald-100/80 border border-emerald-300 rounded-lg flex items-center justify-between text-xs text-emerald-900 font-bold">
+                    <div className="flex items-center space-x-2">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span>Expert is Verified</span>
+                    </div>
+                    <span className="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded uppercase">Verified</span>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={verifying}
+                    onClick={() => onVerify && onVerify(expert.id)}
+                    className="w-full flex items-center justify-center space-x-2 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl font-bold text-xs shadow-md transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <ShieldCheck className="h-4 w-4" />
+                    <span>{verifying ? 'Verifying...' : 'Verify Expert Credentials'}</span>
+                  </button>
+                )}
               </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleRequestConsultation}
-                className="w-full flex items-center justify-center space-x-2 py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl font-bold text-xs shadow-sm transition-colors cursor-pointer"
-              >
-                <MessageSquare className="h-4 w-4 text-emerald-200" />
-                <span>Request Consultation</span>
-              </button>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* Non-official Consultation Request Action */}
+          {!isOfficial && (
+            <div className="pt-2">
+              {requested ? (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs text-emerald-800 font-bold">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    <span>Consultation Request Registered</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">Sent</span>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleRequestConsultation}
+                  className="w-full flex items-center justify-center space-x-2 py-3 bg-emerald-800 hover:bg-emerald-900 text-white rounded-xl font-bold text-xs shadow-sm transition-colors cursor-pointer"
+                >
+                  <MessageSquare className="h-4 w-4 text-emerald-200" />
+                  <span>Request Consultation</span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
 }
+

@@ -16,6 +16,7 @@ import HistoryPage from './components/farmer/HistoryPage';
 import ReportsPage from './components/farmer/ReportsPage';
 import CasesPage from './components/farmer/CasesPage';
 import ExpertDashboard from './components/expert/ExpertDashboard';
+import OfficialDashboard from './components/official/OfficialDashboard';
 import AuthModal from './components/AuthModal';
 import Footer from './components/Footer';
 import { getCurrentUser } from './api/auth';
@@ -101,8 +102,9 @@ export default function App() {
   const farmerViews = ['dashboard', 'cropsAndFarms', 'editProfile', 'addObservation', 'history', 'reports', 'cases'];
   const isLoggedIn = !!currentUser || !!localStorage.getItem('token');
   const roleStr = (currentUser?.role || currentUser?.data?.role || '').toLowerCase();
-  const isExpert = isLoggedIn && (roleStr === 'expert' || Boolean(currentUser?.data?.expert_profile));
-  const isFarmerLoggedIn = isLoggedIn && !isExpert && (farmerViews.includes(currentView) || currentView === 'dashboard');
+  const isOfficial = isLoggedIn && roleStr === 'official';
+  const isExpert = isLoggedIn && !isOfficial && (roleStr === 'expert' || Boolean(currentUser?.data?.expert_profile));
+  const isFarmerLoggedIn = isLoggedIn && !isExpert && !isOfficial && (farmerViews.includes(currentView) || currentView === 'dashboard');
 
 
   return (
@@ -115,7 +117,7 @@ export default function App() {
             <p className="text-sm font-medium text-stone-600">Loading...</p>
           </div>
         </div>
-      ) : isExpert ? null : isFarmerLoggedIn ? (
+      ) : isExpert ? null : isOfficial ? null : isFarmerLoggedIn ? (
         <FarmerNavbar
           currentUser={currentUser}
           onLogout={handleLogout}
@@ -130,7 +132,17 @@ export default function App() {
       )}
 
       {/* Dynamic View Content */}
-      {authLoading ? null : isExpert ? (
+      {authLoading ? null : isOfficial ? (
+        currentView === 'editProfile' ? (
+          <EditProfilePage onBack={() => setCurrentView('dashboard')} />
+        ) : (
+          <OfficialDashboard
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onEditProfile={handleEditProfile}
+          />
+        )
+      ) : isExpert ? (
         currentView === 'editProfile' ? (
           <EditProfilePage onBack={() => setCurrentView('dashboard')} />
         ) : (
